@@ -517,11 +517,12 @@ class AIPredictionViewSet(viewsets.ViewSet):
         if result.get('available') and 'predictions' in result:
             try:
                 AIDecision.objects.create(
-                    decision_type='demand_forecast',
+                    decision_type='general',
                     timestamp=timezone.now(),
-                    decision_data=result,
+                    decision=result,
                     confidence=0.85,
-                    applied=False
+                    applied=False,
+                    reasoning='Energy demand forecast'
                 )
             except Exception as e:
                 print(f"Warning: Could not record forecast: {e}")
@@ -580,11 +581,12 @@ class AIPredictionViewSet(viewsets.ViewSet):
         if result.get('available'):
             try:
                 AIDecision.objects.create(
-                    decision_type='source_recommendation',
+                    decision_type='power_source',
                     timestamp=timezone.now(),
-                    decision_data=result,
+                    decision=result,
                     confidence=result.get('confidence', 0.85),
-                    applied=False
+                    applied=False,
+                    reasoning=result.get('reasoning', '')
                 )
             except Exception as e:
                 print(f"Warning: Could not record recommendation: {e}")
@@ -623,12 +625,12 @@ class AIPredictionViewSet(viewsets.ViewSet):
         if result.get('available'):
             try:
                 AIDecision.objects.create(
-                    decision_type='comprehensive',
+                    decision_type='general',
                     timestamp=timezone.now(),
-                    decision_data=result,
+                    decision=result,
                     confidence=0.85,
                     applied=False,
-                    recommendation=result.get('recommendation', '')
+                    reasoning=result.get('recommendation', '')
                 )
             except Exception as e:
                 print(f"Warning: Could not record decision: {e}")

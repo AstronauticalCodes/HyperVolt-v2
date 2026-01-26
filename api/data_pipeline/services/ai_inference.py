@@ -265,9 +265,9 @@ class AIInferenceService:
         Returns:
             DataFrame with required features or None
         """
-        from ..models import SensorReading, GridData
-        
         try:
+            from ..models import SensorReading, GridData
+            
             # Get timestamp range
             end_time = timezone.now()
             start_time = end_time - timedelta(hours=24)
@@ -321,9 +321,9 @@ class AIInferenceService:
         Returns:
             Dictionary with current conditions
         """
-        from ..models import GridData, SensorReading
-        
         try:
+            from ..models import GridData, SensorReading
+            
             # Get latest grid data
             carbon_data = GridData.objects.filter(
                 data_type='carbon_intensity'
