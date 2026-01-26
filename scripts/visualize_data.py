@@ -133,8 +133,8 @@ def visualize_datasets():
     # Show plot if not in headless mode
     try:
         plt.show()
-    except:
-        print("\nNote: Running in headless mode, plot saved but not displayed.")
+    except (ImportError, RuntimeError) as e:
+        print(f"\nNote: Running in headless mode ({e.__class__.__name__}), plot saved but not displayed.")
 
 
 def main():

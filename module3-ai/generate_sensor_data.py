@@ -193,6 +193,7 @@ class SensorDataGenerator:
     def generate_complete_sensor_dataset(self, days: int = 30) -> pd.DataFrame:
         """
         Generate complete sensor dataset with all sensors
+        Uses shared timestamps to ensure all sensor data is properly aligned
         """
         print(f"Generating synthetic sensor data for {days} days...")
         
@@ -203,16 +204,12 @@ class SensorDataGenerator:
             freq='5min'
         )
         
-        # Generate individual sensor readings with same timestamps
+        # Generate individual sensor readings
         ldr_df = self.generate_ldr_readings(days)
         current_df = self.generate_current_readings(days)
         dht22_df = self.generate_dht22_readings(days)
         
-        # Use the same timestamps for all (take from LDR as they're all generated independently)
-        # Instead, regenerate them all with a shared timestamp array
-        # This is a simpler approach - just combine the data with reset_index
-        
-        # Combine all sensor data into one dataframe (they all have same number of rows)
+        # Combine all sensor data with shared timestamps
         df = pd.DataFrame({
             'timestamp': dates,
             'sensor_id': self.sensor_id,

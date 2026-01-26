@@ -6,7 +6,6 @@ scipy>=1.11.0
 
 # Deep Learning
 tensorflow>=2.13.0
-keras>=2.13.0
 
 # Data Visualization
 matplotlib>=3.7.0
