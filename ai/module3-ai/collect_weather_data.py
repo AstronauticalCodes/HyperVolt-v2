@@ -22,12 +22,37 @@ class WeatherDataCollector:
                        shortwave/direct/diffuse radiation
     """
     
-    def __init__(self):
+    # API configuration constants
+    DEFAULT_MINUTELY_PARAMS = [
+        'temperature_2m',
+        'relative_humidity_2m',
+        'shortwave_radiation',
+        'direct_radiation',
+        'diffuse_radiation',
+        'wind_speed_10m'
+    ]
+    
+    DEFAULT_HOURLY_PARAMS = [
+        'temperature_2m',
+        'relative_humidity_2m',
+        'cloud_cover',
+        'weather_code',
+        'wind_speed_10m',
+        'shortwave_radiation',
+        'direct_radiation',
+        'diffuse_radiation'
+    ]
+    
+    def __init__(self, minutely_params: List[str] = None, hourly_params: List[str] = None):
         # Open-Meteo doesn't require an API key for free tier (10,000 calls/day)
         self.lat = float(os.getenv('LATITUDE', 12.9716))
         self.lon = float(os.getenv('LONGITUDE', 77.5946))
         self.base_url = "https://api.open-meteo.com/v1/forecast"
         self.use_mock = False
+        
+        # Use default params if not provided
+        self.minutely_params = minutely_params or self.DEFAULT_MINUTELY_PARAMS
+        self.hourly_params = hourly_params or self.DEFAULT_HOURLY_PARAMS
     
     def get_current_weather(self) -> Dict:
         """Get current weather data using Open-Meteo's high-resolution 15-minute data"""
@@ -38,7 +63,7 @@ class WeatherDataCollector:
             'latitude': self.lat,
             'longitude': self.lon,
             # High-resolution 15-minute data for immediate optimization
-            'minutely_15': 'temperature_2m,relative_humidity_2m,shortwave_radiation,direct_radiation,diffuse_radiation,wind_speed_10m',
+            'minutely_15': ','.join(self.minutely_params),
             # Daily data for sunrise/sunset
             'daily': 'sunrise,sunset',
             'timezone': 'auto',
@@ -81,7 +106,7 @@ class WeatherDataCollector:
             'latitude': self.lat,
             'longitude': self.lon,
             # Hourly data for longer-term planning
-            'hourly': 'temperature_2m,relative_humidity_2m,cloud_cover,weather_code,wind_speed_10m,shortwave_radiation,direct_radiation,diffuse_radiation',
+            'hourly': ','.join(self.hourly_params),
             'timezone': 'auto',
             'forecast_days': days
         }

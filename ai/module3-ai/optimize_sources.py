@@ -26,12 +26,17 @@ class SourceOptimizer:
     Uses a weighted cost function to minimize both monetary cost and carbon footprint
     """
     
+    # Solar panel configuration constants
+    PANEL_EFFICIENCY = 0.20  # 20% efficiency (configurable)
+    PEAK_IRRADIANCE = 1000  # W/m² at peak (standard test condition)
+    
     def __init__(self, 
                  carbon_weight: float = 0.5,
                  cost_weight: float = 0.5,
                  solar_capacity: float = 3.0,  # kW
                  battery_capacity: float = 10.0,  # kWh
-                 battery_max_discharge: float = 2.0):  # kW
+                 battery_max_discharge: float = 2.0,  # kW
+                 panel_efficiency: float = PANEL_EFFICIENCY):
         """
         Initialize the optimizer
         
@@ -41,6 +46,7 @@ class SourceOptimizer:
             solar_capacity: Maximum solar panel output (kW)
             battery_capacity: Battery storage capacity (kWh)
             battery_max_discharge: Maximum battery discharge rate (kW)
+            panel_efficiency: Solar panel efficiency (0-1), default 0.20 (20%)
         """
         self.carbon_weight = carbon_weight
         self.cost_weight = cost_weight
@@ -48,6 +54,7 @@ class SourceOptimizer:
         self.battery_capacity = battery_capacity
         self.battery_max_discharge = battery_max_discharge
         self.battery_current_charge = battery_capacity * 0.8  # Start at 80%
+        self.panel_efficiency = panel_efficiency
         
         # Cost parameters
         self.battery_cycle_cost = 0.10  # ₹/kWh (battery degradation)
@@ -95,12 +102,11 @@ class SourceOptimizer:
             return 0.0
         
         # Convert W/m² to kW using panel area and efficiency
-        # Assuming 3 kW peak capacity corresponds to ~1000 W/m² irradiance
-        panel_efficiency = 0.20  # 20% efficiency
-        panel_area = self.solar_capacity / (1.0 * panel_efficiency)  # m²
+        # Assuming peak capacity corresponds to PEAK_IRRADIANCE (1000 W/m²) irradiance
+        panel_area = self.solar_capacity / (self.PEAK_IRRADIANCE / 1000 * self.panel_efficiency)  # m²
         
         # Calculate power from shortwave radiation
-        solar_power_kw = (shortwave_radiation / 1000) * panel_area * panel_efficiency
+        solar_power_kw = (shortwave_radiation / 1000) * panel_area * self.panel_efficiency
         
         # Reduce slightly by cloud cover (already factored into radiation, but add small penalty)
         cloud_factor = 1 - (cloud_cover / 100) * 0.1

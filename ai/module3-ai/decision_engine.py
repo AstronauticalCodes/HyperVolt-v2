@@ -30,7 +30,12 @@ class LoadManager:
     Classifies loads and makes deferral decisions based on carbon intensity
     """
     
-    def __init__(self, carbon_threshold: float = 700):
+    # Configuration constants
+    DEFAULT_CARBON_THRESHOLD = 700  # gCO2eq/kWh
+    CLEAN_CARBON_BASELINE = 400  # gCO2eq/kWh - baseline for clean energy
+    NORMAL_GRID_PRICE = 5.0  # ₹/kWh - baseline grid price
+    
+    def __init__(self, carbon_threshold: float = DEFAULT_CARBON_THRESHOLD):
         """
         Initialize load manager
         
@@ -81,7 +86,7 @@ class LoadManager:
                 'defer': True,
                 'reason': f'High carbon intensity ({carbon_intensity:.0f} gCO2eq/kWh) - defer until cleaner',
                 'load_type': LoadType.DEFERRABLE,
-                'carbon_savings': load['power_kw'] * (carbon_intensity - 400)  # Assume 400 is clean baseline
+                'carbon_savings': load['power_kw'] * (carbon_intensity - self.CLEAN_CARBON_BASELINE)
             }
         
         # Also defer if grid price is very high
@@ -90,7 +95,7 @@ class LoadManager:
                 'defer': True,
                 'reason': f'High grid price (₹{grid_price:.2f}/kWh) - defer until cheaper',
                 'load_type': LoadType.DEFERRABLE,
-                'cost_savings': load['power_kw'] * (grid_price - 5.0)  # Assume ₹5 is normal price
+                'cost_savings': load['power_kw'] * (grid_price - self.NORMAL_GRID_PRICE)
             }
         
         return {

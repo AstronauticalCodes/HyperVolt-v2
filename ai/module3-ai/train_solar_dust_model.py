@@ -226,14 +226,17 @@ class SolarDustPredictor:
         if self.model is None:
             raise ValueError("Model not trained or loaded. Train or load model first.")
         
+        # Create a copy to avoid modifying the input DataFrame
+        data = current_data.copy()
+        
         # Calculate volatility if not present
-        if 'power_volatility' not in current_data.columns:
-            current_data['power_volatility'] = 0.0
-        if 'efficiency_volatility' not in current_data.columns:
-            current_data['efficiency_volatility'] = 0.0
+        if 'power_volatility' not in data.columns:
+            data['power_volatility'] = 0.0
+        if 'efficiency_volatility' not in data.columns:
+            data['efficiency_volatility'] = 0.0
         
         # Prepare features
-        X = current_data[self.feature_columns].values
+        X = data[self.feature_columns].values
         X = self.scaler.transform(X)
         
         # Predict
@@ -242,7 +245,7 @@ class SolarDustPredictor:
         # Differentiate between shadow and dust
         # High volatility = likely shadow/cloud
         # Low volatility + low efficiency = likely dust
-        volatility = current_data['efficiency_volatility'].values[0] if 'efficiency_volatility' in current_data.columns else 0
+        volatility = data['efficiency_volatility'].values[0] if 'efficiency_volatility' in data.columns else 0
         
         is_shadow = volatility > 0.05  # High volatility indicates temporary shadow
         issue_type = "Shadow/Cloud" if is_shadow else "Dust"
@@ -258,8 +261,8 @@ class SolarDustPredictor:
             
             # Calculate potential savings from cleaning
             efficiency_loss = dust_percentage * 0.007
-            if 'expected_power_kw' in current_data.columns:
-                expected_power = current_data['expected_power_kw'].values[0]
+            if 'expected_power_kw' in data.columns:
+                expected_power = data['expected_power_kw'].values[0]
                 potential_gain_kw = expected_power * efficiency_loss
                 potential_revenue_gain = potential_gain_kw * 6  # ₹6/kWh
             else:
