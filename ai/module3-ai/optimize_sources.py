@@ -53,15 +53,37 @@ class SourceOptimizer:
         self.battery_cycle_cost = 0.10  # ₹/kWh (battery degradation)
         self.solar_maintenance_cost = 0.05  # ₹/kWh (negligible)
         
+        # Battery Health Protection parameters
+        self.battery_degradation_cost_per_cycle = 5.0  # ₹ per full cycle
+    
+    def get_dynamic_discharge_limit(self, potential_profit: float) -> float:
+        """
+        Calculate dynamic discharge limit based on potential profit
+        Protects battery health by limiting deep discharge unless profitable
+        
+        Args:
+            potential_profit: Expected profit from discharge (₹)
+            
+        Returns:
+            Minimum battery charge level (0-1, as fraction of capacity)
+        """
+        # Cycle cost estimation (e.g., a full cycle costs ₹5 in degradation)
+        if potential_profit > self.battery_degradation_cost_per_cycle * 2:
+            return 0.10  # Allow deep discharge (10%) for high profit
+        elif potential_profit > self.battery_degradation_cost_per_cycle:
+            return 0.25  # Moderate discharge (25%) for moderate profit
+        else:
+            return 0.40  # Conservative discharge (40%) to extend life
+        
     def calculate_solar_available(self, 
-                                   solar_radiation: float, 
+                                   shortwave_radiation: float, 
                                    cloud_cover: float,
                                    hour: int) -> float:
         """
         Calculate available solar power based on conditions
         
         Args:
-            solar_radiation: Solar radiation proxy (0-1)
+            shortwave_radiation: Shortwave radiation in W/m² (from Open-Meteo)
             cloud_cover: Cloud cover percentage (0-100)
             hour: Hour of day (0-23)
             
@@ -72,13 +94,20 @@ class SourceOptimizer:
         if hour < 6 or hour >= 18:
             return 0.0
         
-        # Reduce by cloud cover
-        cloud_factor = (100 - cloud_cover) / 100
+        # Convert W/m² to kW using panel area and efficiency
+        # Assuming 3 kW peak capacity corresponds to ~1000 W/m² irradiance
+        panel_efficiency = 0.20  # 20% efficiency
+        panel_area = self.solar_capacity / (1.0 * panel_efficiency)  # m²
         
-        # Calculate available power
-        solar_power = self.solar_capacity * solar_radiation * cloud_factor
+        # Calculate power from shortwave radiation
+        solar_power_kw = (shortwave_radiation / 1000) * panel_area * panel_efficiency
         
-        return max(0, solar_power)
+        # Reduce slightly by cloud cover (already factored into radiation, but add small penalty)
+        cloud_factor = 1 - (cloud_cover / 100) * 0.1
+        
+        solar_power = solar_power_kw * cloud_factor
+        
+        return max(0, min(solar_power, self.solar_capacity))
     
     def calculate_cost_score(self,
                             source: EnergySource,
@@ -164,7 +193,7 @@ class SourceOptimizer:
         Args:
             power_needed: Power required (kW)
             conditions: Dictionary with current conditions:
-                - solar_radiation: 0-1
+                - shortwave_radiation: W/m² (from Open-Meteo)
                 - cloud_cover: 0-100
                 - hour: 0-23
                 - carbon_intensity: gCO2eq/kWh
@@ -176,14 +205,19 @@ class SourceOptimizer:
         """
         # Calculate available power from each source
         solar_available = self.calculate_solar_available(
-            conditions['solar_radiation'],
+            conditions.get('shortwave_radiation', conditions.get('solar_radiation', 0)),  # Backward compatible
             conditions['cloud_cover'],
             conditions['hour']
         )
         
+        # Calculate potential profit from battery discharge (for health protection)
+        potential_profit = power_needed * (conditions['grid_price'] - self.battery_cycle_cost)
+        discharge_limit = self.get_dynamic_discharge_limit(potential_profit)
+        
+        # Battery available considering health protection
         battery_available = min(
             self.battery_max_discharge,
-            self.battery_current_charge  # Can't discharge more than stored
+            max(0, self.battery_current_charge - (self.battery_capacity * discharge_limit))
         )
         
         # Calculate scores for each source
@@ -243,6 +277,7 @@ class SourceOptimizer:
             'total_power': power_needed,
             'solar_available': solar_available,
             'battery_available': battery_available,
+            'battery_discharge_limit': discharge_limit,
             'allocation': [(s.value, f"{p:.3f}") for s, p in allocation],
             'cost': actual_cost,
             'carbon': actual_carbon,
@@ -284,7 +319,7 @@ class SourceOptimizer:
             
             # Current conditions
             conditions = {
-                'solar_radiation': row['solar_radiation_proxy'],
+                'shortwave_radiation': row.get('shortwave_radiation', row.get('solar_radiation_proxy', 0) * 800),
                 'cloud_cover': row['cloud_cover'],
                 'hour': row['hour'],
                 'carbon_intensity': row['carbon_intensity'],
