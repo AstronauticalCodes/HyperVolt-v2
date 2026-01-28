@@ -282,6 +282,8 @@ import Adafruit_DHT
 import Adafruit_MCP3008
 
 # Configuration
+# SECURITY NOTE: Replace with your computer's IP address
+# For production, use authentication and TLS encryption
 MQTT_BROKER = "YOUR_LAPTOP_IP"  # Replace with your computer's IP
 MQTT_PORT = 1883
 LOCATION = "living_room"
@@ -293,6 +295,9 @@ mcp = Adafruit_MCP3008.MCP3008(clk=11, cs=8, miso=9, mosi=10)
 
 # MQTT client
 client = mqtt.Client()
+# For secured MQTT, uncomment and configure:
+# client.username_pw_set("username", "password")
+# client.tls_set()
 client.connect(MQTT_BROKER, MQTT_PORT, 60)
 client.loop_start()
 
@@ -338,6 +343,8 @@ redis-server
 mosquitto -c /etc/mosquitto/mosquitto.conf -v
 
 # Terminal 3: Django Backend
+# NOTE: Using 0.0.0.0 allows connections from Raspberry Pi on local network
+# For local-only development, use 127.0.0.1 instead
 cd api
 daphne -b 0.0.0.0 -p 8000 hypervolt_backend.asgi:application
 
@@ -345,6 +352,9 @@ daphne -b 0.0.0.0 -p 8000 hypervolt_backend.asgi:application
 cd website
 npm run dev
 ```
+
+> ⚠️ **Security Note**: Binding to `0.0.0.0` exposes the server to your entire network.
+> For production deployments, use a reverse proxy (nginx) with proper authentication.
 
 ### Step 3: Start Sensor Publisher on Raspberry Pi
 
@@ -606,6 +616,12 @@ AI_MODEL_PATH=../ai/models
 USE_SIMULATION_FILE=true
 ```
 
+> ⚠️ **Security Warning**: 
+> - Never commit your `.env` file to version control
+> - Replace placeholder API keys with your actual keys
+> - Use strong, unique passwords for database connections
+> - Rotate API keys regularly
+
 ### Custom AI Weights
 
 Adjust AI optimization priorities:
@@ -667,8 +683,8 @@ redis-server
 # Terminal 2: MQTT
 mosquitto -v
 
-# Terminal 3: Backend
-cd api && daphne -b 0.0.0.0 -p 8000 hypervolt_backend.asgi:application
+# Terminal 3: Backend (use 127.0.0.1 for local-only access)
+cd api && daphne -b 127.0.0.1 -p 8000 hypervolt_backend.asgi:application
 
 # Terminal 4: Frontend
 cd website && npm run dev

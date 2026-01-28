@@ -449,9 +449,7 @@ class SimulationRunner:
                 # Advance simulation time if accelerated
                 if accelerated:
                     self.data_generator.advance_time(1)  # 1 minute per iteration
-                else:
-                    # Advance by proportion of interval to real minutes
-                    self.data_generator.advance_time(interval_seconds // 60)
+                # In normal mode, time advances naturally with real clock
                 
                 # Wait for next iteration
                 time.sleep(interval_seconds)

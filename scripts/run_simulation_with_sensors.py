@@ -502,7 +502,7 @@ class RealSensorSimulationRunner:
         print(f"\n  Starting simulation:")
         print(f"    Duration: {duration_minutes} minutes")
         print(f"    Update interval: {interval_seconds} seconds")
-        print(f"    AI decision interval: {DECISION_INTERVAL_SECONDS} seconds")
+        print(f"    AI decision interval: {decision_interval} seconds")
         print(f"\n  Waiting for sensor data from hardware...")
         print(f"  Make sure your Raspberry Pi / ESP32 is publishing to MQTT.")
         print(f"  Press Ctrl+C to stop\n")
