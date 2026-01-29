@@ -314,7 +314,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Main Dashboard */}
+      {/* Main Dashboard */ }
       <main className="container mx-auto px-6 py-8">
         {/* Stats Grid */}
         <div className="mb-8">

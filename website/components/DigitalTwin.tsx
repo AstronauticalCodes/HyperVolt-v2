@@ -1,12 +1,13 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
+import React, { useRef, useState, useEffect, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls, PerspectiveCamera, useGLTF } from '@react-three/drei'
+import { OrbitControls, PerspectiveCamera, useGLTF, Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Loader2, AlertCircle, Home as HomeIcon } from 'lucide-react'
 
+// --- Types ---
 interface DigitalTwinProps {
   lightIntensity: number
   activeSource: 'solar' | 'battery' | 'grid'
@@ -18,102 +19,54 @@ interface DigitalTwinProps {
 
 type ModelLoadState = 'loading' | 'success' | 'error'
 
-function HouseModel({
+// --- 1. The Geometric Fallback House (No external files needed) ---
+function GeometricHouse({
   lightIntensity,
   brightnessThreshold,
-  weatherCondition = 'sunny',
-  onLoadStateChange,
+  needsArtificialLight,
+  artificialLightIntensity
 }: {
   lightIntensity: number
   brightnessThreshold: number
-  weatherCondition: string
-  onLoadStateChange?: (state: ModelLoadState) => void
+  needsArtificialLight: boolean
+  artificialLightIntensity: number
 }) {
-  const houseRef = useRef<THREE.Group>(null)
-  const [loadState, setLoadState] = useState<ModelLoadState>('loading')
-  const [loadError, setLoadError] = useState(false)
+  const groupRef = useRef<THREE.Group>(null)
 
-  // Load the GLTF model with error handling
-  let gltf: any = null
-  
-  try {
-    gltf = useGLTF('/models/sus_room.gltf')
-  } catch (error) {
-    console.error('GLTF model loading failed:', error)
-    setLoadError(true)
-  }
-
-  // Handle successful load
-  useEffect(() => {
-    if (gltf && gltf.scene && !loadError) {
-      setLoadState('success')
-      onLoadStateChange?.('success')
-    }
-  }, [gltf, loadError, onLoadStateChange])
-
-  // Handle load error
-  useEffect(() => {
-    if (loadError) {
-      setLoadState('error')
-      onLoadStateChange?.('error')
-    }
-  }, [loadError, onLoadStateChange])
-
-  const needsArtificialLight = lightIntensity < brightnessThreshold
-  const artificialLightIntensity = needsArtificialLight
-    ? ((brightnessThreshold - lightIntensity) / 100) * 1.5
-    : 0
-
-  useFrame((state) => {
-    const time = state.clock.getElapsedTime()
-    if (houseRef.current) {
-      houseRef.current.rotation.y = Math.sin(time * 0.2) * 0.05
-    }
-  })
-
-  // If model loaded successfully, render it
-  if (gltf && !loadError) {
-    return (
-      <group ref={houseRef} position={[0, -1, 0]} scale={0.01}>
-        <primitive object={gltf.scene} />
-
-        {needsArtificialLight && (
-          <pointLight
-            position={[0, 200, 0]}
-            intensity={artificialLightIntensity}
-            color="#FFE5B4"
-            distance={600}
-            decay={2}
-          />
-        )}
-      </group>
-    )
-  }
-
-  // Fallback model
   return (
-    <group ref={houseRef} position={[0, 0, 0]}>
-      {/* Simple house representation */}
-      <mesh position={[0, 0.5, 0]} castShadow>
-        <boxGeometry args={[2, 1, 2]} />
+    <group ref={groupRef} position={[0, -1, 0]}>
+      {/* Base */}
+      <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
+        <boxGeometry args={[4, 2, 4]} />
         <meshStandardMaterial color="#2D3748" />
       </mesh>
       {/* Roof */}
-      <mesh position={[0, 1.3, 0]} castShadow>
-        <coneGeometry args={[1.5, 0.8, 4]} />
-        <meshStandardMaterial color="#1F2937" />
+      <mesh position={[0, 2.0, 0]} castShadow>
+        <coneGeometry args={[3.5, 1.5, 4]} />
+        <meshStandardMaterial color="#1F2937"/>
       </mesh>
       {/* Door */}
-      <mesh position={[0, 0.3, 1.01]}>
-        <boxGeometry args={[0.4, 0.6, 0.05]} />
+      <mesh position={[0, 0.5, 2.01]}>
+        <boxGeometry args={[0.8, 1.2, 0.1]} />
         <meshStandardMaterial color="#8B4513" />
       </mesh>
+      {/* Windows */}
+      <mesh position={[-1.2, 0.8, 2.01]}>
+        <planeGeometry args={[0.8, 0.8]} />
+        <meshStandardMaterial color={needsArtificialLight ? "#F6E05E" : "#4A5568"} emissive={needsArtificialLight ? "#F6E05E" : "#000000"} />
+      </mesh>
+      <mesh position={[1.2, 0.8, 2.01]}>
+        <planeGeometry args={[0.8, 0.8]} />
+        <meshStandardMaterial color={needsArtificialLight ? "#F6E05E" : "#4A5568"} emissive={needsArtificialLight ? "#F6E05E" : "#000000"} />
+      </mesh>
+
+      {/* Internal Light Logic */}
       {needsArtificialLight && (
         <pointLight
           position={[0, 1.5, 0]}
           intensity={artificialLightIntensity}
           color="#FFE5B4"
-          distance={6}
+          distance={10}
           decay={2}
         />
       )}
@@ -121,105 +74,187 @@ function HouseModel({
   )
 }
 
-function Scene({ lightIntensity, brightnessThreshold, weatherCondition, onLoadStateChange }: any) {
+// --- 2. The Real GLTF Model ---
+function GLTFModel({ onLoad }: { onLoad: () => void }) {
+  // This will SUSPEND if loading, or THROW if failed
+  const gltf = useGLTF('/models/sus_room.gltf')
+
+  // Report success once loaded
+  useEffect(() => {
+    onLoad()
+  }, [onLoad])
+
+  return (
+    <primitive
+      object={gltf.scene}
+      position={[0, -1, 0]}
+      scale={0.02} // Adjusted scale - if too small, increase this
+    />
+  )
+}
+
+// --- 3. Error Boundary to catch GLTF failures ---
+class ModelErrorBoundary extends React.Component<
+  { fallback: React.ReactNode; onError: () => void; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: any) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error: any) {
+    console.error("3D Model Load Failed:", error)
+    this.props.onError()
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback
+    }
+    return this.props.children
+  }
+}
+
+// --- 4. Main Scene Component ---
+function Scene({
+  lightIntensity,
+  brightnessThreshold,
+  onLoadStateChange
+}: {
+  lightIntensity: number
+  brightnessThreshold: number
+  onLoadStateChange: (state: ModelLoadState) => void
+}) {
+  const needsArtificialLight = lightIntensity < brightnessThreshold
+  const artificialLightIntensity = needsArtificialLight
+    ? ((brightnessThreshold - lightIntensity) / 100) * 2
+    : 0
+
   return (
     <>
       <ambientLight intensity={0.5} />
       <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
-      <HouseModel
-        lightIntensity={lightIntensity}
-        brightnessThreshold={brightnessThreshold}
-        weatherCondition={weatherCondition}
-        onLoadStateChange={onLoadStateChange}
-      />
+      <Environment />
+
+      <ModelErrorBoundary
+        onError={() => onLoadStateChange('error')}
+        fallback={
+          <GeometricHouse
+            lightIntensity={lightIntensity}
+            brightnessThreshold={brightnessThreshold}
+            needsArtificialLight={needsArtificialLight}
+            artificialLightIntensity={artificialLightIntensity}
+          />
+        }
+      >
+        <Suspense fallback={null}>
+          <group>
+            <GLTFModel onLoad={() => onLoadStateChange('success')} />
+            {/* Add lights to the GLTF model specifically if needed */}
+            {needsArtificialLight && (
+              <pointLight
+                position={[0, 5, 0]}
+                intensity={artificialLightIntensity}
+                color="#FFE5B4"
+                distance={20}
+                decay={2}
+              />
+            )}
+          </group>
+        </Suspense>
+      </ModelErrorBoundary>
     </>
   )
 }
 
-export default function DigitalTwin({ 
-  lightIntensity, 
-  activeSource, 
-  brightnessThreshold, 
-  weatherCondition = 'sunny', 
+// Helper for Environment (Sky/City reflection)
+function Environment() {
+  return (
+    <mesh scale={100}>
+      <sphereGeometry args={[1, 64, 64]} />
+      <meshBasicMaterial color="#111" side={THREE.BackSide} />
+    </mesh>
+  )
+}
+
+// --- 5. Exported Component ---
+export default function DigitalTwin({
+  lightIntensity,
+  activeSource,
+  brightnessThreshold,
+  weatherCondition = 'sunny',
   className,
-  onLoadingComplete 
+  onLoadingComplete
 }: DigitalTwinProps) {
   const [modelState, setModelState] = useState<ModelLoadState>('loading')
   const [showContent, setShowContent] = useState(false)
 
   const handleLoadStateChange = (state: ModelLoadState) => {
-    setModelState(state)
-    // Add a small delay before showing content for smooth transition
-    setTimeout(() => {
-      setShowContent(true)
-      onLoadingComplete?.(state === 'success')
-    }, 500)
+    // Only update if state changes to prevent loops
+    if (modelState !== state) {
+      setModelState(state)
+      setTimeout(() => {
+        setShowContent(true)
+        onLoadingComplete?.(state === 'success')
+      }, 500)
+    }
   }
 
   return (
-    <div className={className} style={{ width: '100%', height: '100%', position: 'relative' }}>
-      {/* Loading/Error Overlay */}
+    <div className={className} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+
+      {/* Loading / Error Overlay */}
       <AnimatePresence>
         {!showContent && (
           <motion.div
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
-            className="absolute inset-0 z-10 flex items-center justify-center bg-gray-900/95 rounded-lg"
+            className="absolute inset-0 z-10 flex items-center justify-center bg-gray-900 rounded-lg"
           >
             {modelState === 'loading' && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center gap-4"
-              >
-                <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
-                <div className="text-center">
-                  <p className="text-white font-semibold">Loading 3D Model</p>
-                  <p className="text-gray-400 text-sm mt-1">Please wait...</p>
-                </div>
-              </motion.div>
-            )}
-            {modelState === 'error' && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center gap-4"
-              >
-                <div className="p-3 bg-yellow-500/20 rounded-full">
-                  <HomeIcon className="w-12 h-12 text-yellow-500" />
-                </div>
-                <div className="text-center">
-                  <p className="text-white font-semibold">Using Fallback Model</p>
-                  <p className="text-gray-400 text-sm mt-1">3D model unavailable</p>
-                </div>
-              </motion.div>
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+                <p className="text-white font-medium">Loading Digital Twin...</p>
+              </div>
             )}
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* Status Badge (Shows if using Fallback) */}
+      {showContent && modelState === 'error' && (
+        <div className="absolute top-4 left-4 z-10 bg-yellow-500/20 backdrop-blur-md border border-yellow-500/30 px-3 py-1.5 rounded-full flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-yellow-500" />
+          <span className="text-xs text-yellow-200">Using Fallback Model</span>
+        </div>
+      )}
+
       {/* 3D Canvas */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: showContent ? 1 : 0 }}
-        transition={{ duration: 0.5 }}
+        transition={{ duration: 1 }}
         style={{ width: '100%', height: '100%' }}
       >
-        <Canvas shadows>
-          <PerspectiveCamera makeDefault position={[8, 5, 8]} />
+        <Canvas shadows dpr={[1, 2]}>
+          <PerspectiveCamera makeDefault position={[12, 8, 12]} fov={50} />
           <OrbitControls
-            enableZoom={true}
-            enablePan={true}
-            minDistance={2}
+            enablePan={false}
+            minDistance={8}
             maxDistance={20}
             autoRotate
-            autoRotateSpeed={0.8}
+            autoRotateSpeed={0.5}
+            target={[0, 0, 0]}
           />
           <Scene
             lightIntensity={lightIntensity}
             brightnessThreshold={brightnessThreshold}
-            weatherCondition={weatherCondition}
             onLoadStateChange={handleLoadStateChange}
           />
         </Canvas>

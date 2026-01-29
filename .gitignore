@@ -1,4 +1,5 @@
 .idea
+.ai
 .venv
 /website/.vercel
 /website/node_modules
