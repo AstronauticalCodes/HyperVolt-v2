@@ -234,7 +234,8 @@ export default function Dashboard() {
         }
 
       } catch (error) {
-        console.error('Failed to fetch initial data:', error)
+        // Use console.warn instead of console.error to reduce noise when backend is unavailable
+        console.warn('Failed to fetch initial data - backend may not be running')
         addLog({
           id: Date.now().toString(),
           timestamp: new Date().toISOString(),
