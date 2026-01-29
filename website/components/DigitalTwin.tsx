@@ -31,30 +31,33 @@ function HouseModel({
 }) {
   const houseRef = useRef<THREE.Group>(null)
   const [loadState, setLoadState] = useState<ModelLoadState>('loading')
+  const [loadError, setLoadError] = useState(false)
 
   // Load the GLTF model with error handling
   let gltf: any = null
-  let loadError = false
   
   try {
     gltf = useGLTF('/models/sus_room.gltf')
-    
-    // Check if model loaded successfully
-    useEffect(() => {
-      if (gltf && gltf.scene) {
-        setLoadState('success')
-        onLoadStateChange?.('success')
-      }
-    }, [gltf])
   } catch (error) {
     console.error('GLTF model loading failed:', error)
-    loadError = true
-    
-    useEffect(() => {
+    setLoadError(true)
+  }
+
+  // Handle successful load
+  useEffect(() => {
+    if (gltf && gltf.scene && !loadError) {
+      setLoadState('success')
+      onLoadStateChange?.('success')
+    }
+  }, [gltf, loadError, onLoadStateChange])
+
+  // Handle load error
+  useEffect(() => {
+    if (loadError) {
       setLoadState('error')
       onLoadStateChange?.('error')
-    }, [])
-  }
+    }
+  }, [loadError, onLoadStateChange])
 
   const needsArtificialLight = lightIntensity < brightnessThreshold
   const artificialLightIntensity = needsArtificialLight

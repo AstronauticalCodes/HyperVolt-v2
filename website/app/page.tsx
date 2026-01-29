@@ -15,6 +15,9 @@ import PowerDistribution from '@/components/PowerDistribution'
 import EfficiencyChart from '@/components/EfficiencyChart'
 import RealTimeMetrics from '@/components/RealTimeMetrics'
 
+// Constants
+const MAX_HISTORY_ENTRIES = 20
+
 // Dynamic imports for 3D components (client-side only)
 const DigitalTwin = dynamic(() => import('@/components/DigitalTwin'), {
   ssr: false,
@@ -62,7 +65,7 @@ export default function Dashboard() {
   })
   const [carbonHistory, setCarbonHistory] = useState<Array<{ timestamp: string; value: number }>>([])
   const [efficiencyHistory, setEfficiencyHistory] = useState<Array<{ timestamp: string; efficiency: number }>>([])
-  const [is3DModelLoaded, setIs3DModelLoaded] = useState(false)
+
 
   // WebSocket connection for real-time updates
   const { isConnected, lastMessage } = useWebSocket(undefined, {
@@ -168,7 +171,7 @@ export default function Dashboard() {
         // Add to history
         setCarbonHistory(prev => {
           const newHistory = [...prev, { timestamp: new Date().toISOString(), value: carbonData.value }]
-          return newHistory.slice(-20) // Keep last 20 entries
+          return newHistory.slice(-MAX_HISTORY_ENTRIES)
         })
         
         addLog({
@@ -218,25 +221,27 @@ export default function Dashboard() {
     const interval = setInterval(async () => {
       try {
         // Update stats with more realistic variations
-        setStats(prev => {
-          const newEfficiency = Math.min(100, Math.max(70, prev.efficiency + (Math.random() - 0.5) * 3))
-          
-          // Add efficiency to history
-          setEfficiencyHistory(prevHistory => {
-            const newHistory = [...prevHistory, { 
-              timestamp: new Date().toISOString(), 
-              efficiency: newEfficiency 
-            }]
-            return newHistory.slice(-20) // Keep last 20 entries
+        const newEfficiency = await new Promise<number>((resolve) => {
+          setStats(prev => {
+            const efficiency = Math.min(100, Math.max(70, prev.efficiency + (Math.random() - 0.5) * 3))
+            resolve(efficiency)
+            return {
+              ...prev,
+              carbonSavings: prev.carbonSavings + Math.random() * 0.1,
+              costSavings: prev.costSavings + Math.random() * 0.05,
+              powerConsumption: 1.0 + Math.random() * 0.5,
+              efficiency: efficiency,
+            }
           })
-          
-          return {
-            ...prev,
-            carbonSavings: prev.carbonSavings + Math.random() * 0.1,
-            costSavings: prev.costSavings + Math.random() * 0.05,
-            powerConsumption: 1.0 + Math.random() * 0.5,
-            efficiency: newEfficiency,
-          }
+        })
+        
+        // Add efficiency to history (separate from stats update)
+        setEfficiencyHistory(prevHistory => {
+          const newHistory = [...prevHistory, { 
+            timestamp: new Date().toISOString(), 
+            efficiency: newEfficiency 
+          }]
+          return newHistory.slice(-MAX_HISTORY_ENTRIES)
         })
 
         // Periodically fetch carbon data
@@ -244,10 +249,11 @@ export default function Dashboard() {
           const carbonData = await apiService.getCurrentCarbonIntensity()
           setCarbonHistory(prev => {
             const newHistory = [...prev, { timestamp: new Date().toISOString(), value: carbonData.value }]
-            return newHistory.slice(-20)
+            return newHistory.slice(-MAX_HISTORY_ENTRIES)
           })
         } catch (error) {
-          // Silently handle error for periodic updates
+          // Log error but don't disrupt periodic updates
+          console.debug('Carbon data fetch failed during periodic update:', error)
         }
       } catch (error) {
         console.error('Failed to refresh data:', error)
@@ -333,7 +339,6 @@ export default function Dashboard() {
                   brightnessThreshold={brightnessThreshold}
                   weatherCondition={weatherCondition}
                   className="w-full h-full"
-                  onLoadingComplete={(success) => setIs3DModelLoaded(success)}
                 />
               </div>
             </div>

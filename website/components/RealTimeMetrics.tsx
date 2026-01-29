@@ -35,7 +35,6 @@ export default function RealTimeMetrics({
       value: powerConsumption.toFixed(2),
       unit: 'kW',
       trend: powerConsumption > 1.5 ? 'up' : 'down',
-      trendValue: '2.3%',
       icon: <Zap className="w-4 h-4" />,
       color: 'blue',
     },
@@ -44,7 +43,6 @@ export default function RealTimeMetrics({
       value: costRate.toFixed(2),
       unit: '₹/hr',
       trend: costRate < 5 ? 'down' : 'up',
-      trendValue: '5.1%',
       icon: <DollarSign className="w-4 h-4" />,
       color: 'yellow',
     },
@@ -53,7 +51,6 @@ export default function RealTimeMetrics({
       value: carbonRate.toFixed(1),
       unit: 'gCO₂/hr',
       trend: carbonRate < 200 ? 'down' : 'up',
-      trendValue: '12.4%',
       icon: <Leaf className="w-4 h-4" />,
       color: 'green',
     },
@@ -62,7 +59,6 @@ export default function RealTimeMetrics({
       value: efficiency.toFixed(0),
       unit: '%',
       trend: efficiency > 80 ? 'up' : 'neutral',
-      trendValue: '1.8%',
       icon: <Activity className="w-4 h-4" />,
       color: 'purple',
     },
@@ -141,25 +137,15 @@ export default function RealTimeMetrics({
                 <span className="text-xs text-gray-500">{metric.unit}</span>
               </div>
 
-              {metric.trendValue && (
-                <div className="flex items-center gap-1">
-                  {metric.trend === 'up' ? (
-                    <TrendingUp className="w-3 h-3 text-red-400" />
-                  ) : metric.trend === 'down' ? (
-                    <TrendingDown className="w-3 h-3 text-green-400" />
-                  ) : (
-                    <Activity className="w-3 h-3 text-gray-400" />
-                  )}
-                  <span className={cn(
-                    'text-xs',
-                    metric.trend === 'up' ? 'text-red-400' : 
-                    metric.trend === 'down' ? 'text-green-400' : 
-                    'text-gray-400'
-                  )}>
-                    {metric.trendValue}
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center gap-1">
+                {metric.trend === 'up' ? (
+                  <TrendingUp className="w-3 h-3 text-red-400" />
+                ) : metric.trend === 'down' ? (
+                  <TrendingDown className="w-3 h-3 text-green-400" />
+                ) : (
+                  <Activity className="w-3 h-3 text-gray-400" />
+                )}
+              </div>
             </motion.div>
           )
         })}
