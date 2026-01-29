@@ -49,11 +49,11 @@ class APIService {
   }
 
   async getCurrentCarbonIntensity() {
-    return this.request<GridData>(`/api/grid-data/current_carbon_intensity/`)
+    return this.request<GridData>(`/api/grid-data/carbon_intensity/`)
   }
 
   async getCurrentWeather() {
-    return this.request<GridData>(`/api/grid-data/current_weather/`)
+    return this.request<GridData>(`/api/grid-data/weather/`)
   }
 
   // Energy Sources
