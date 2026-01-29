@@ -32,7 +32,8 @@ export default function HeroSection({
   onScrollClick,
 }: HeroSectionProps) {
   return (
-    <section className="relative w-full h-screen">
+    // CHANGE 1: Use h-[100dvh] instead of h-screen to account for mobile browser bars
+    <section className="relative w-full h-[100dvh]">
       {/* Full viewport 3D model */}
       <div className="absolute inset-0 w-full h-full">
         <DigitalTwin
@@ -46,15 +47,20 @@ export default function HeroSection({
 
       {/* Overlay with branding */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="container mx-auto h-full flex flex-col justify-between p-8">
+        {/* CHANGE 2:
+            - Reduced base padding to p-4 for smaller screens
+            - Added pb-20 (padding-bottom) specifically to lift the bottom button up away from the address bar/home indicator
+            - Kept md:p-8 for desktop layouts
+        */}
+        <div className="container mx-auto h-full flex flex-col justify-between p-4 pb-20 md:p-8">
           {/* Top branding */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5, duration: 0.8 }}
-            className="text-center"
+            className="text-center mt-8 md:mt-0" // Added margin-top for mobile safe area
           >
-            <h1 className="text-6xl md:text-7xl font-bold text-white mb-4 drop-shadow-2xl">
+            <h1 className="text-5xl md:text-7xl font-bold text-white mb-4 drop-shadow-2xl">
               HyperVolt
             </h1>
             <p className="text-xl md:text-2xl text-gray-200 drop-shadow-lg">
