@@ -155,7 +155,7 @@ export interface EnergyFlowProps {
 export interface StrategyLogEntry {
   id: string
   timestamp: string
-  type: 'info' | 'warning' | 'success' | 'decision'
+  type: 'info' | 'warning' | 'success' | 'decision' | 'error'
   message: string
   details?: string
 }
