@@ -86,6 +86,9 @@ export interface ForecastPrediction {
   hour: number
   predicted_kwh: number
   timestamp: string
+  hour_of_day?: number
+  is_peak_hour?: boolean
+  demand_level?: 'high' | 'medium' | 'low'
 }
 
 export interface AIForecast {
