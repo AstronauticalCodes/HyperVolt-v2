@@ -249,9 +249,6 @@ class SimpleAIService:
     Main AI Service combining forecasting and optimization
     """
     
-    SIMULATION_FILE = os.path.join(settings.BASE_DIR, 'data', 'simulation_sensors.csv')
-    USE_SIMULATION = True  # Set to False for real sensors
-    
     def __init__(self):
         self.forecaster = SimpleEnergyForecaster()
         self.optimizer = SimpleSourceOptimizer()
@@ -261,40 +258,8 @@ class SimpleAIService:
         return True
     
     def get_conditions(self) -> Dict:
-        """Get current conditions from simulation file or database"""
-        try:
-            if self.USE_SIMULATION and os.path.exists(self.SIMULATION_FILE):
-                return self._read_simulation_file()
-            else:
-                return self._read_from_database()
-        except Exception as e:
-            print(f"Error reading conditions: {e}")
-            return self._get_defaults()
-    
-    def _read_simulation_file(self) -> Dict:
-        """Read conditions from CSV simulation file"""
-        if not PANDAS_AVAILABLE:
-            print("Warning: pandas not available, using defaults")
-            return self._get_defaults()
-        
-        try:
-            df = pd.read_csv(self.SIMULATION_FILE)
-            sensors = dict(zip(df['sensor_type'], df['value']))
-            
-            return {
-                'hour': timezone.now().hour,
-                'temperature': float(sensors.get('temperature', 25.0)),
-                'humidity': float(sensors.get('humidity', 50.0)),
-                'ldr': float(sensors.get('ldr', 2000)),
-                'current': float(sensors.get('current', 1.0)),
-                'voltage': float(sensors.get('voltage', 230.0)),
-                'carbon_intensity': 450,
-                'grid_price': 6.0,
-                'source': 'simulation'
-            }
-        except Exception as e:
-            print(f"Error reading simulation file: {e}")
-            return self._get_defaults()
+        """Get current conditions from database"""
+        return self._read_from_database()
     
     def _read_from_database(self) -> Dict:
         """Read conditions from Django database"""

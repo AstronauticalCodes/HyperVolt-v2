@@ -1,20 +1,18 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
-import { Activity, Zap, Sun, Battery, Plug, AlertTriangle, Clock, RefreshCw } from 'lucide-react'
+import { Activity, Zap, Sun, Battery, Plug, AlertTriangle, Clock, RefreshCw, Database, History } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { useWebSocket } from '@/hooks/useWebSocket'
-import apiService from '@/lib/api-service'
-import { StrategyLogEntry, WebSocketMessage, ForecastPrediction } from '@/lib/types'
+import { StrategyLogEntry, ForecastPrediction } from '@/lib/types'
 import StatsGrid from '@/components/StatsGrid'
 import EnergyChart from '@/components/EnergyChart'
 import PowerDistribution from '@/components/PowerDistribution'
 import LogsViewer from '@/components/LogsViewer'
 
 // Constants
-const MAX_HISTORY_ENTRIES = 20
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const POLL_INTERVAL = 5000 // 5 seconds
 
 // Dynamic imports for 3D components (client-side only)
 const EnergyFlow = dynamic(() => import('@/components/EnergyFlow'), {
@@ -58,6 +56,36 @@ interface AIDecision {
   available: boolean
 }
 
+// AI Decision History item
+interface AIDecisionHistoryItem {
+  id: number
+  timestamp: string
+  decision_type: string
+  reasoning: string
+  confidence: number
+  applied: boolean
+  primary_source: string
+  predicted_demand_kwh: number
+  battery_percentage: number
+  solar_available: number
+  cost: number
+  carbon: number
+}
+
+// Sensor data from database
+interface SensorData {
+  timestamp: string
+  last_sensor_update: string | null
+  sensors: {
+    temperature: number
+    humidity: number
+    ldr: number
+    current: number
+    voltage: number
+  }
+  source: string
+}
+
 export default function Dashboard() {
   // State management
   const [activeSource, setActiveSource] = useState<'solar' | 'battery' | 'grid'>('grid')
@@ -67,8 +95,9 @@ export default function Dashboard() {
   const [aiAvailable, setAiAvailable] = useState(false)
   const [lastUpdate, setLastUpdate] = useState<string>('')
   const [isLoading, setIsLoading] = useState(true)
+  const [isConnected, setIsConnected] = useState(false)
   
-  // Sensor data from ESP32/simulation
+  // Sensor data from database
   const [sensorData, setSensorData] = useState({
     temperature: 25,
     humidity: 50,
@@ -79,6 +108,9 @@ export default function Dashboard() {
   
   // AI Decision data
   const [decision, setDecision] = useState<AIDecision | null>(null)
+  
+  // AI Decision history
+  const [decisionHistory, setDecisionHistory] = useState<AIDecisionHistoryItem[]>([])
   
   const [stats, setStats] = useState({
     carbonSavings: 0,
@@ -94,50 +126,41 @@ export default function Dashboard() {
     home: 1.2,
   })
 
-  // WebSocket connection for real-time updates
-  const { isConnected, lastMessage } = useWebSocket(undefined, {
-    onMessage: handleWebSocketMessage,
-    autoReconnect: true,
-  })
-
-  function handleWebSocketMessage(message: WebSocketMessage) {
-    console.log('WebSocket message:', message)
-
-    if (message.type === 'sensor_update' && message.data) {
-      const { sensor_type, value } = message.data
-      setSensorData(prev => ({
-        ...prev,
-        [sensor_type]: value
-      }))
-      
-      addLog({
-        id: Date.now().toString(),
-        timestamp: new Date().toISOString(),
-        type: 'info',
-        message: `Sensor update: ${sensor_type} = ${value}`,
-      })
-    }
-
-    if (message.type === 'ai_decision' && message.data) {
-      const source = message.data.source || message.data.payload?.source
-      if (source) {
-        setActiveSource(source as 'solar' | 'battery' | 'grid')
-      }
-      addLog({
-        id: Date.now().toString(),
-        timestamp: new Date().toISOString(),
-        type: 'success',
-        message: `AI Decision: Switch to ${source?.toUpperCase()}`,
-        details: message.data.reasoning || message.data.payload?.details?.recommendation
-      })
-    }
-  }
-
   const addLog = useCallback((log: StrategyLogEntry) => {
     setStrategyLogs(prev => [...prev.slice(-50), log])
   }, [])
 
-  // Fetch AI Decision - this is the main function that gets AI data
+  // Fetch sensor data from database
+  const fetchSensorData = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/sensor-readings/all_latest/`)
+      if (response.ok) {
+        const data: SensorData = await response.json()
+        setSensorData(data.sensors)
+        setIsConnected(true)
+        return data
+      }
+    } catch (error) {
+      console.warn('Failed to fetch sensor data:', error)
+      setIsConnected(false)
+    }
+    return null
+  }, [])
+
+  // Fetch AI decision history from database
+  const fetchDecisionHistory = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/ai-decisions/history/?limit=10`)
+      if (response.ok) {
+        const data = await response.json()
+        setDecisionHistory(data.decisions || [])
+      }
+    } catch (error) {
+      console.warn('Failed to fetch decision history:', error)
+    }
+  }, [])
+
+  // Fetch AI Decision - makes a new decision and saves to database
   const fetchAIDecision = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/ai/decide/`, {
@@ -155,6 +178,7 @@ export default function Dashboard() {
         setForecastData(data.forecast || [])
         setPeakHours(data.peak_hours || [])
         setLastUpdate(new Date().toLocaleTimeString())
+        setIsConnected(true)
         
         // Update active source from AI decision
         const primarySource = data.current_decision?.primary_source
@@ -162,7 +186,7 @@ export default function Dashboard() {
           setActiveSource(primarySource as 'solar' | 'battery' | 'grid')
         }
         
-        // Update sensor data from conditions
+        // Update sensor data from conditions (this is from database)
         if (data.current_conditions) {
           setSensorData({
             temperature: data.current_conditions.temperature || 25,
@@ -199,64 +223,75 @@ export default function Dashboard() {
           message: `AI Decision: ${data.recommendation}`,
           details: `Source: ${primarySource}, Demand: ${data.current_decision?.predicted_demand_kwh?.toFixed(2)} kWh`
         })
+        
+        // Refresh decision history after new decision
+        await fetchDecisionHistory()
       }
     } catch (error) {
       console.warn('AI decision fetch failed:', error)
+      setIsConnected(false)
       addLog({
         id: Date.now().toString(),
         timestamp: new Date().toISOString(),
         type: 'warning',
-        message: 'AI service unavailable - using fallback',
+        message: 'API connection failed',
+        details: 'Start Django: cd api && python manage.py runserver'
       })
     }
-  }, [addLog])
+  }, [addLog, fetchDecisionHistory])
 
-  // Check AI Status on load
+  // Initial load
   useEffect(() => {
-    const checkAIStatus = async () => {
+    const initialize = async () => {
       setIsLoading(true)
       try {
+        // Check API status
         const response = await fetch(`${API_BASE_URL}/api/ai/status/`)
         if (response.ok) {
           const status = await response.json()
           setAiAvailable(status.available)
+          setIsConnected(true)
           
           addLog({
             id: Date.now().toString(),
             timestamp: new Date().toISOString(),
-            type: status.available ? 'success' : 'warning',
-            message: status.available 
-              ? '✅ AI Engine Online - Ready for predictions'
-              : '⚠️ AI Engine starting up...',
+            type: 'success',
+            message: '✅ Connected to API - Fetching data from database',
           })
           
-          // Fetch initial AI decision
-          await fetchAIDecision()
+          // Fetch all data
+          await Promise.all([
+            fetchSensorData(),
+            fetchAIDecision(),
+            fetchDecisionHistory(),
+          ])
         }
       } catch (error) {
-        console.warn('Failed to check AI status')
+        console.warn('Failed to connect to API')
+        setIsConnected(false)
         addLog({
           id: Date.now().toString(),
           timestamp: new Date().toISOString(),
           type: 'warning',
-          message: 'Backend not connected - Start Django server',
-          details: `Run: cd api && python manage.py runserver`
+          message: 'Backend not connected',
+          details: 'Run: cd api && python manage.py runserver'
         })
       }
       setIsLoading(false)
     }
     
-    checkAIStatus()
-  }, [addLog, fetchAIDecision])
+    initialize()
+  }, [addLog, fetchSensorData, fetchAIDecision, fetchDecisionHistory])
 
-  // Periodic AI decision updates
+  // Periodic polling for updates (no WebSocket needed)
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchAIDecision()
-    }, 10000) // Every 10 seconds
+    const interval = setInterval(async () => {
+      await fetchSensorData()
+      await fetchAIDecision()
+    }, POLL_INTERVAL)
 
     return () => clearInterval(interval)
-  }, [fetchAIDecision])
+  }, [fetchSensorData, fetchAIDecision])
 
   // Get source icon
   const getSourceIcon = (source: string) => {
@@ -295,11 +330,15 @@ export default function Dashboard() {
                 </span>
               </div>
               
-              {/* WebSocket Status */}
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 rounded-full border border-gray-700">
-                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-                <span className="text-xs text-gray-300">
-                  {isConnected ? 'Live' : 'Offline'}
+              {/* Database Connection Status */}
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${
+                isConnected 
+                  ? 'bg-blue-500/10 border-blue-500/50 text-blue-400' 
+                  : 'bg-red-500/10 border-red-500/50 text-red-400'
+              }`}>
+                <Database className="w-3 h-3" />
+                <span className="text-xs font-medium">
+                  {isConnected ? 'DB Connected' : 'DB Offline'}
                 </span>
               </div>
               
@@ -331,7 +370,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-center h-64">
             <div className="flex flex-col items-center gap-4">
               <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
-              <p className="text-gray-400">Connecting to AI Engine...</p>
+              <p className="text-gray-400">Connecting to Database...</p>
             </div>
           </div>
         ) : (
@@ -424,7 +463,7 @@ export default function Dashboard() {
               </motion.div>
             )}
 
-            {/* Sensor Data from ESP32/Simulation */}
+            {/* Sensor Data from Database */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -432,10 +471,10 @@ export default function Dashboard() {
               className="mb-8"
             >
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-blue-400" />
-                Hardware Sensor Data
+                <Database className="w-5 h-5 text-blue-400" />
+                Sensor Data from Database
                 <span className="text-xs text-gray-500 ml-2">
-                  (Source: {decision?.current_conditions?.source || 'simulation'})
+                  (Source: {decision?.current_conditions?.source || 'database'})
                 </span>
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -510,10 +549,66 @@ export default function Dashboard() {
               <EnergyChart forecastData={forecastData} />
             </motion.div>
 
+            {/* AI Decision History from Database */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="mb-8"
+            >
+              <div className="bg-gray-900/50 rounded-lg p-6 border border-gray-700/50">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <History className="w-5 h-5 text-purple-400" />
+                  AI Decision History (from Database)
+                </h3>
+                
+                {decisionHistory.length > 0 ? (
+                  <div className="space-y-3 max-h-80 overflow-y-auto">
+                    {decisionHistory.map((item, idx) => (
+                      <div 
+                        key={item.id} 
+                        className={`p-3 rounded-lg border ${
+                          idx === 0 
+                            ? 'bg-purple-500/10 border-purple-500/30' 
+                            : 'bg-gray-800/50 border-gray-700/50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            {getSourceIcon(item.primary_source)}
+                            <span className="text-white font-medium capitalize">
+                              {item.primary_source}
+                            </span>
+                            {idx === 0 && (
+                              <span className="text-xs bg-purple-500/30 text-purple-300 px-2 py-0.5 rounded-full">
+                                Latest
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs text-gray-400">
+                            {new Date(item.timestamp).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-300 mb-2">{item.reasoning}</p>
+                        <div className="flex gap-4 text-xs text-gray-400">
+                          <span>Demand: {item.predicted_demand_kwh?.toFixed(2)} kW</span>
+                          <span>Battery: {item.battery_percentage?.toFixed(0)}%</span>
+                          <span>Solar: {item.solar_available?.toFixed(2)} kW</span>
+                          <span>Cost: ₹{item.cost?.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500">No decisions recorded yet. AI will save decisions to database.</p>
+                )}
+              </div>
+            </motion.div>
+
             {/* Last Update Time */}
             <div className="text-center text-sm text-gray-500 mb-4">
               <Clock className="w-4 h-4 inline mr-1" />
-              Last AI Update: {lastUpdate || 'Never'}
+              Last Update: {lastUpdate || 'Never'} | Polling every {POLL_INTERVAL / 1000}s
             </div>
           </>
         )}

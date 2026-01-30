@@ -55,6 +55,35 @@ class SensorReadingViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(latest_readings, many=True)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def all_latest(self, request):
+        """Get all sensor readings as a single consolidated object."""
+        sensor_data = {
+            'temperature': 25.0,
+            'humidity': 50.0,
+            'ldr': 2000,
+            'current': 1.0,
+            'voltage': 230.0,
+        }
+        last_updated = None
+        
+        for sensor_type in sensor_data.keys():
+            reading = self.queryset.filter(
+                sensor_type=sensor_type
+            ).order_by('-timestamp').first()
+            
+            if reading:
+                sensor_data[sensor_type] = float(reading.value)
+                if not last_updated or reading.timestamp > last_updated:
+                    last_updated = reading.timestamp
+        
+        return Response({
+            'timestamp': timezone.now().isoformat(),
+            'last_sensor_update': last_updated.isoformat() if last_updated else None,
+            'sensors': sensor_data,
+            'source': 'database'
+        })
 
     @action(detail=False, methods=['get'])
     def recent(self, request):
@@ -210,6 +239,56 @@ class AIDecisionViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def latest(self, request):
+        """Get the most recent AI decision."""
+        decision_type = request.query_params.get('decision_type')
+        
+        queryset = self.queryset
+        if decision_type:
+            queryset = queryset.filter(decision_type=decision_type)
+        
+        latest = queryset.order_by('-timestamp').first()
+        
+        if latest:
+            serializer = self.get_serializer(latest)
+            return Response(serializer.data)
+        
+        return Response({'message': 'No decisions found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    @action(detail=False, methods=['get'])
+    def history(self, request):
+        """Get a list of recent AI decisions with summary data for display."""
+        limit = int(request.query_params.get('limit', 10))
+        limit = min(limit, 50)  # Cap at 50
+        
+        decisions = self.queryset.order_by('-timestamp')[:limit]
+        
+        result = []
+        for decision in decisions:
+            decision_data = decision.decision or {}
+            current_decision = decision_data.get('current_decision', {})
+            
+            result.append({
+                'id': decision.id,
+                'timestamp': decision.timestamp.isoformat(),
+                'decision_type': decision.decision_type,
+                'reasoning': decision.reasoning,
+                'confidence': decision.confidence,
+                'applied': decision.applied,
+                'primary_source': current_decision.get('primary_source', 'unknown'),
+                'predicted_demand_kwh': current_decision.get('predicted_demand_kwh', 0),
+                'battery_percentage': current_decision.get('battery_percentage', 0),
+                'solar_available': current_decision.get('solar_available', 0),
+                'cost': current_decision.get('cost', 0),
+                'carbon': current_decision.get('carbon', 0),
+            })
+        
+        return Response({
+            'count': len(result),
+            'decisions': result
+        })
 
 
 class EnergySourceViewSet(viewsets.ModelViewSet):
