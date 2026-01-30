@@ -61,47 +61,34 @@ class AIInferenceService:
     def _initialize_models(self):
         """Initialize and load AI models"""
         try:
-            # Initialize forecaster
-            self.forecaster = EnergyDemandForecaster(
-                lookback_hours=24,
-                forecast_horizon=6
-            )
+            # Construct absolute path to the 'ai/models' directory
+            # settings.BASE_DIR is usually '.../HyperVolt/api'
+            ai_models_dir = os.path.abspath(os.path.join(settings.BASE_DIR, '..', 'ai', 'models'))
 
-            # --- FIX STARTS HERE ---
-            # 1. Construct the absolute path to the 'ai/models' directory
-            # settings.BASE_DIR is '.../HyperVolt/api'
-            # We go up one level (..) then into 'ai/models'
-            ai_models_dir = os.path.join(settings.BASE_DIR, '..', 'ai', 'models')
-            ai_models_dir = os.path.abspath(ai_models_dir)  # Resolve '..' to make it clean
-
-            # 2. Define the specific model file path
+            # Define specific file paths
             model_path = os.path.join(ai_models_dir, 'demand_forecaster.h5')
+            scaler_path = os.path.join(ai_models_dir, 'demand_forecaster_scalers.pkl')
 
-            if os.path.exists(model_path):
+            # Initialize Forecaster
+            self.forecaster = EnergyDemandForecaster(lookback_hours=24, forecast_horizon=6)
+
+            if os.path.exists(model_path) and os.path.exists(scaler_path):
                 print(f"Loading AI model from: {model_path}")
-                # Pass the explicit path to the loader
-                self.forecaster.load_model(model_path)
+                self.forecaster.load_model(model_path)  # Ensure load_model accepts path arg
                 self.models_loaded = True
             else:
-                print(f"Warning: Model file not found at {model_path}")
+                print(f"Warning: Model files not found in {ai_models_dir}")
+                print("Please run 'python ai/module3-ai/train_demand_model.py' first.")
                 self.models_loaded = False
-            # --- FIX ENDS HERE ---
 
-            # Initialize optimizer
-            # Note: You might need to do similar path fixing inside SourceOptimizer
-            # if it fails to load 'solar_dust_random_forest.pkl'
+            # Initialize Optimizer
             self.optimizer = SourceOptimizer(
-                carbon_weight=0.5,
-                cost_weight=0.5,
-                solar_capacity=3.0,
-                battery_capacity=10.0,
-                battery_max_discharge=2.0
+                carbon_weight=0.5, cost_weight=0.5,
+                solar_capacity=3.0, battery_capacity=10.0
             )
 
-            print("✓ AI models initialized successfully")
-
         except Exception as e:
-            print(f"Warning: Could not initialize AI models: {e}")
+            print(f"Error initializing AI models: {e}")
             self.models_loaded = False
     
     def is_available(self) -> bool:

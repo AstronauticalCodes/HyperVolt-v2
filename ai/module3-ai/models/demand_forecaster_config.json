@@ -1,0 +1,17 @@
+{
+  "lookback_hours": 24,
+  "forecast_horizon": 6,
+  "feature_columns": [
+    "total_energy_kwh",
+    "temperature",
+    "humidity",
+    "carbon_intensity",
+    "grid_price_per_kwh",
+    "hour",
+    "day_of_week",
+    "is_weekend",
+    "is_peak_hour",
+    "occupancy_factor"
+  ],
+  "trained_date": "2026-01-30T18:28:09.352818"
+}

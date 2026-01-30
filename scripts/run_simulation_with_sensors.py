@@ -190,19 +190,19 @@ class MQTTSensorListener:
             else:
                 print(f"  ⚠ Invalid topic format: {msg.topic}")
                 return
-            
+
             # Parse payload
             try:
                 payload = json.loads(msg.payload.decode())
             except json.JSONDecodeError:
                 # Try parsing as simple value
                 payload = {'value': float(msg.payload.decode())}
-            
+
             # Extract values
             value = payload.get('value', 0)
             sensor_id = payload.get('sensor_id', f'{sensor_type}_1')
             unit = payload.get('unit', 'unit')
-            
+
             # Add to processor
             reading = self.processor.add_reading(
                 sensor_type=sensor_type,

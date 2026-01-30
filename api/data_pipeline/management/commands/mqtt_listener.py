@@ -7,6 +7,7 @@ Usage:
 """
 import json
 import logging
+from datetime import datetime, time
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.utils import timezone
@@ -85,16 +86,16 @@ class Command(BaseCommand):
         """Callback when connected to MQTT broker."""
         if rc == 0:
             self.stdout.write(self.style.SUCCESS('Connected to MQTT broker'))
-            
+
             # Subscribe to topics
-            topic_pattern = f"{settings.MQTT_TOPIC_PREFIX}/sensors/#"
+            topic_pattern = f"solar/data"
             client.subscribe(topic_pattern)
             self.stdout.write(self.style.SUCCESS(f'Subscribed to: {topic_pattern}'))
-            
+
             # Also subscribe to commands response topic
             commands_topic = f"{settings.MQTT_TOPIC_PREFIX}/commands/response"
             client.subscribe(commands_topic)
-            
+
         else:
             self.stdout.write(self.style.ERROR(f'Connection failed with code {rc}'))
             logger.error(f'MQTT connection failed: {rc}')
@@ -108,7 +109,7 @@ class Command(BaseCommand):
     def on_message(self, client, userdata, msg):
         """
         Callback when a message is received.
-        
+
         Expected message format (JSON):
         {
             "sensor_type": "ldr",
@@ -122,13 +123,13 @@ class Command(BaseCommand):
         try:
             # Parse the message
             payload = json.loads(msg.payload.decode('utf-8'))
-            
+
             self.stdout.write(
                 self.style.SUCCESS(f'Received on {msg.topic}: {payload}')
             )
 
             # Validate required fields
-            required_fields = ['sensor_type', 'sensor_id', 'value']
+            required_fields = ['sensor_type', 'sensor_id', 'value','unit','location','timestamp']
             if not all(field in payload for field in required_fields):
                 logger.warning(f'Invalid message format: {payload}')
                 return
@@ -141,8 +142,24 @@ class Command(BaseCommand):
             location = payload.get('location', '')
             timestamp = payload.get('timestamp')
 
+            # Parse timestamp with fallback for time-only format
             if timestamp:
-                timestamp = timezone.datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                try:
+                    # Try parsing as full ISO datetime
+                    timestamp = timezone.datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                except ValueError:
+                    # If it's just time (HH:MM:SS), add today's date
+                    try:
+                        time_obj = datetime.strptime(timestamp, '%H:%M:%S').time()
+                        timestamp = timezone.make_aware(
+                            datetime.combine(timezone.now().date(), time_obj)
+                        )
+                    except ValueError:
+                        # Fallback to current time
+                        self.stdout.write(
+                            self.style.WARNING(f'Invalid timestamp format: {timestamp}, using current time')
+                        )
+                        timestamp = timezone.now()
             else:
                 timestamp = timezone.now()
 
@@ -167,11 +184,16 @@ class Command(BaseCommand):
             # Broadcast to WebSocket clients
             self.broadcast_sensor_data(sensor_reading)
 
+            self.stdout.write(
+                self.style.SUCCESS(f'✓ Processed sensor reading: {sensor_type}={value}{unit}')
+            )
             logger.info(f'Processed sensor reading: {sensor_reading}')
 
         except json.JSONDecodeError as e:
+            self.stdout.write(self.style.ERROR(f'Failed to decode JSON: {e}'))
             logger.error(f'Failed to decode JSON: {e}')
         except Exception as e:
+            self.stdout.write(self.style.ERROR(f'Error processing message: {e}'))
             logger.error(f'Error processing message: {e}')
 
     def broadcast_sensor_data(self, sensor_reading):

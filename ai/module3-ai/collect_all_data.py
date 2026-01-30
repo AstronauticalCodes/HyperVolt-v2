@@ -114,7 +114,7 @@ class MasterDataCollector:
         self.print_summary(datasets, integrated_df)
         
         return datasets, integrated_df
-    
+
     def create_integrated_dataset(self, datasets: dict) -> pd.DataFrame:
         """
         Combine all datasets into a single integrated dataset
@@ -122,36 +122,45 @@ class MasterDataCollector:
         """
         # Start with energy data (hourly)
         df = datasets['energy'].copy()
-        
+
         # Merge with weather data (hourly)
         weather_df = datasets['weather'].copy()
         weather_df['timestamp'] = pd.to_datetime(weather_df['timestamp'])
         df['timestamp'] = pd.to_datetime(df['timestamp'])
-        
+
+        # Get only columns that exist in weather_df
+        weather_columns = ['timestamp', 'temperature', 'humidity']
+
+        # Add optional columns if they exist
+        optional_weather_cols = ['cloud_cover', 'wind_speed', 'solar_radiation_proxy', 'solar_radiation']
+        for col in optional_weather_cols:
+            if col in weather_df.columns:
+                weather_columns.append(col)
+
         df = pd.merge(
-            df, 
-            weather_df[['timestamp', 'temperature', 'humidity', 'cloud_cover', 'wind_speed', 'solar_radiation_proxy']],
+            df,
+            weather_df[weather_columns],
             on='timestamp',
             how='left',
             suffixes=('', '_weather')
         )
-        
+
         # Merge with carbon intensity data (hourly)
         carbon_df = datasets['carbon'].copy()
         carbon_df['timestamp'] = pd.to_datetime(carbon_df['timestamp'])
-        
+
         df = pd.merge(
             df,
             carbon_df[['timestamp', 'carbon_intensity', 'renewable_percentage', 'grid_price_per_kwh']],
             on='timestamp',
             how='left'
         )
-        
+
         # Aggregate sensor data to hourly (from 5-min intervals)
         sensor_df = datasets['sensor'].copy()
         sensor_df['timestamp'] = pd.to_datetime(sensor_df['timestamp'])
         sensor_df['timestamp_hour'] = sensor_df['timestamp'].dt.floor('h')
-        
+
         sensor_hourly = sensor_df.groupby('timestamp_hour').agg({
             'ldr_lux': 'mean',
             'current_a': 'mean',
@@ -160,23 +169,23 @@ class MasterDataCollector:
             'indoor_humidity_pct': 'mean'
         }).reset_index()
         sensor_hourly.rename(columns={'timestamp_hour': 'timestamp'}, inplace=True)
-        
+
         df = pd.merge(
             df,
             sensor_hourly,
             on='timestamp',
             how='left'
         )
-        
+
         # Add calculated features
         df['energy_cost'] = df['total_energy_kwh'] * df['grid_price_per_kwh']
         df['carbon_footprint'] = df['total_energy_kwh'] * df['carbon_intensity'] / 1000  # kg CO2
-        
+
         # Fill any missing values
         df = df.ffill().bfill()
-        
+
         return df
-    
+
     def print_summary(self, datasets: dict, integrated_df: pd.DataFrame):
         """
         Print a summary of collected data
@@ -184,18 +193,18 @@ class MasterDataCollector:
         print("\n" + "=" * 70)
         print("DATA COLLECTION SUMMARY")
         print("=" * 70)
-        
+
         print("\n📊 Individual Datasets:")
         print(f"  Weather Data:          {len(datasets['weather']):,} records")
         print(f"  Carbon Intensity:      {len(datasets['carbon']):,} records")
         print(f"  Energy Consumption:    {len(datasets['energy']):,} records")
         print(f"  Sensor Readings:       {len(datasets['sensor']):,} records")
-        
+
         print(f"\n📈 Integrated Dataset:   {len(integrated_df):,} records")
         print(f"  Features:              {len(integrated_df.columns)} columns")
         print(f"  Time span:             {self.days} days")
         print(f"  Frequency:             Hourly")
-        
+
         print("\n💡 Key Statistics:")
         print(f"  Avg Energy Usage:      {integrated_df['total_energy_kwh'].mean():.3f} kWh/hour")
         print(f"  Total Energy (30d):    {integrated_df['total_energy_kwh'].sum():.1f} kWh")
@@ -203,13 +212,22 @@ class MasterDataCollector:
         print(f"  Total Carbon (30d):    {integrated_df['carbon_footprint'].sum():.1f} kg CO2")
         print(f"  Avg Grid Price:        ₹{integrated_df['grid_price_per_kwh'].mean():.2f}/kWh")
         print(f"  Total Energy Cost:     ₹{integrated_df['energy_cost'].sum():.2f}")
-        
+
         print("\n🌡️  Environmental Stats:")
-        print(f"  Avg Temperature:       {integrated_df['temperature'].mean():.1f}°C")
-        print(f"  Avg Humidity:          {integrated_df['humidity'].mean():.1f}%")
-        print(f"  Avg Solar Radiation:   {integrated_df['solar_radiation_proxy'].mean():.2f}")
-        print(f"  Avg Renewable %:       {integrated_df['renewable_percentage'].mean():.1f}%")
-        
+        if 'temperature' in integrated_df.columns:
+            print(f"  Avg Temperature:       {integrated_df['temperature'].mean():.1f}°C")
+        if 'humidity' in integrated_df.columns:
+            print(f"  Avg Humidity:          {integrated_df['humidity'].mean():.1f}%")
+
+        # Check specifically for solar columns before printing
+        if 'solar_radiation_proxy' in integrated_df.columns:
+            print(f"  Avg Solar Radiation:   {integrated_df['solar_radiation_proxy'].mean():.2f}")
+        elif 'solar_radiation' in integrated_df.columns:
+            print(f"  Avg Solar Radiation:   {integrated_df['solar_radiation'].mean():.2f}")
+
+        if 'renewable_percentage' in integrated_df.columns:
+            print(f"  Avg Renewable %:       {integrated_df['renewable_percentage'].mean():.1f}%")
+
         print("\n" + "=" * 70)
         print("✓ ALL DATASETS READY FOR MODULE 3 (ai Training)")
         print("=" * 70)
