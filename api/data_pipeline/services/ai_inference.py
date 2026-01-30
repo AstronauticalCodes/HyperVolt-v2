@@ -46,7 +46,7 @@ class AIInferenceService:
     
     # --- CONFIGURATION ---
     # Set this to False later when you connect real sensors!
-    USE_SIMULATION_FILE = True 
+    USE_SIMULATION_FILE = False
     SIMULATION_FILE_PATH = os.path.join(settings.BASE_DIR, 'data', 'simulation_sensors.csv')
     
     def __init__(self):
@@ -74,7 +74,8 @@ class AIInferenceService:
 
             if os.path.exists(model_path) and os.path.exists(scaler_path):
                 print(f"Loading AI model from: {model_path}")
-                self.forecaster.load_model(model_path)  # Ensure load_model accepts path arg
+                self.forecaster.model_path = model_path
+                self.forecaster.load_model()
                 self.models_loaded = True
             else:
                 print(f"Warning: Model files not found in {ai_models_dir}")
