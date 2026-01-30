@@ -82,7 +82,7 @@ Most energy systems show you data. **HyperVolt simulates the future and self-opt
 ## 🚀 Quick Start - How to Run
 
 ### Prerequisites
-- Python 3.12+
+- Python 3.11+ (3.11 or 3.12)
 - Node.js 18+ (for frontend)
 - Redis (optional - for caching)
 
