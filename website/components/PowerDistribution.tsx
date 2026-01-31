@@ -16,9 +16,9 @@ export default function PowerDistribution({ solarOutput, batteryOutput, gridOutp
   const total = solarOutput + batteryOutput + gridOutput
   
   const data = [
-    { name: 'Solar', value: solarOutput, color: '#FDB022', icon: Sun },
-    { name: 'Battery', value: batteryOutput, color: '#FF6B35', icon: Battery },
-    { name: 'Grid', value: gridOutput, color: '#EF4444', icon: Zap },
+    { name: 'Solar', value: solarOutput, color: '#4ade80', icon: Sun },
+    { name: 'Battery', value: batteryOutput, color: '#facc15', icon: Battery },
+    { name: 'Grid', value: gridOutput, color: '#f87171', icon: Zap },
   ].filter(item => item.value > 0)
 
   const CustomTooltip = ({ active, payload }: any) => {
