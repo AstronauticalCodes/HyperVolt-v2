@@ -60,7 +60,7 @@ export default function HeroSection({
       <div
         className="absolute inset-0 pointer-events-none transition-all duration-1000"
         style={{
-          background: `radial-gradient(circle at center, ${activeColor}20 0%, ${activeColor}10 30%, transparent 70%)`,
+          background: `radial-gradient(circle at center, ${activeColor}50 0%, ${activeColor}30 25%, ${activeColor}15 50%, transparent 75%)`,
         }}
       />
 
