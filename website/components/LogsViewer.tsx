@@ -21,7 +21,7 @@ export default function LogsViewer({ logs }: LogsViewerProps) {
 
   return (
     <>
-      {/* Floating toggle button */}
+      
       <motion.button
         initial={{ opacity: 0, scale: 0 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -41,7 +41,7 @@ export default function LogsViewer({ logs }: LogsViewerProps) {
         )}
       </AnimatePresence>
 
-      {/* Main Logs Panel */}
+      
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -57,7 +57,7 @@ export default function LogsViewer({ logs }: LogsViewerProps) {
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className="fixed bottom-6 right-6 z-50 bg-gray-900/95 backdrop-blur-md border border-gray-700 rounded-xl shadow-2xl overflow-hidden flex flex-col"
           >
-            {/* Header */}
+            
             <div className="flex items-center justify-between px-4 py-3 bg-gray-800/50 border-b border-gray-700">
               <div className="flex items-center gap-2">
                 <Terminal className="w-5 h-5 text-purple-400" />
@@ -85,7 +85,7 @@ export default function LogsViewer({ logs }: LogsViewerProps) {
               </div>
             </div>
 
-            {/* Logs content */}
+            
             <div className={isExpanded ? 'h-[calc(100%-56px)]' : 'h-96'}>
               <StrategyNarrator initialLogs={logs} className="h-full" onLogCountChange={handleLogCountChange} />
             </div>

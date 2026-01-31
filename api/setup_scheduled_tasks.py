@@ -1,10 +1,3 @@
-"""
-Setup script to initialize Django-Q scheduled tasks for HyperVolt.
-Run this after migrations to set up periodic tasks.
-
-Usage:
-    python setup_scheduled_tasks.py
-"""
 import os
 import django
 
@@ -13,17 +6,15 @@ django.setup()
 
 from django_q.models import Schedule
 
-
 def setup_tasks():
-    """Create scheduled tasks for external API data fetching."""
-    
+
     tasks = [
         {
             'name': 'Fetch Carbon Intensity',
             'func': 'data_pipeline.tasks.fetch_carbon_intensity',
             'schedule_type': Schedule.MINUTES,
             'minutes': 15,
-            'repeats': -1,  # Infinite repeats
+            'repeats': -1,
         },
         {
             'name': 'Fetch Weather Data',
@@ -39,7 +30,7 @@ def setup_tasks():
             'repeats': -1,
         },
     ]
-    
+
     for task_config in tasks:
         schedule, created = Schedule.objects.get_or_create(
             name=task_config['name'],
@@ -50,15 +41,14 @@ def setup_tasks():
                 'repeats': task_config['repeats'],
             }
         )
-        
+
         if created:
             print(f"✓ Created scheduled task: {task_config['name']}")
         else:
             print(f"→ Task already exists: {task_config['name']}")
-    
+
     print("\n✓ All scheduled tasks configured!")
     print("Run 'python manage.py qcluster' to start the task worker.")
-
 
 if __name__ == '__main__':
     setup_tasks()

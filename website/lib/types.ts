@@ -1,4 +1,3 @@
-// API Response Types
 export interface SensorReading {
   id: number
   sensor_type: 'ldr' | 'current' | 'temperature' | 'humidity' | 'voltage'
@@ -73,7 +72,6 @@ export interface SourceSwitchEvent {
   created_at: string
 }
 
-// WebSocket Message Types
 export interface WebSocketMessage {
   type: 'sensor_update' | 'source_switch' | 'ai_decision' | 'error' | 'echo'
   data?: any
@@ -81,7 +79,6 @@ export interface WebSocketMessage {
   payload: any;
 }
 
-// AI Forecast Types
 export interface ForecastPrediction {
   hour: number
   predicted_kwh: number
@@ -99,7 +96,6 @@ export interface AIForecast {
   model_type: string
 }
 
-// AI Recommendation Types
 export interface SourceAllocation {
   source: string
   power: number
@@ -123,7 +119,6 @@ export interface AIRecommendation {
   available: boolean
 }
 
-// Dashboard State Types
 export interface DashboardState {
   activeSource: 'solar' | 'battery' | 'grid'
   sensorReadings: {
@@ -143,7 +138,6 @@ export interface DashboardState {
   lastUpdate: string
 }
 
-// UI Component Props
 export interface EnergyFlowProps {
   activeSource: 'solar' | 'battery' | 'grid'
   solarOutput: number

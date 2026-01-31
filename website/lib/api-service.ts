@@ -26,24 +26,20 @@ class APIService {
 
       return response.json()
     } catch (error) {
-      // Check if this is a network/connection error (TypeError with fetch failure)
-      // Use console.warn for expected connection failures to reduce console noise when backend is unavailable
       if (error instanceof TypeError) {
         console.warn(`Backend unavailable: ${endpoint}`)
       } else {
-        // Log non-network errors (like API errors) normally for debugging
         console.error(`API request failed for ${endpoint}:`, error)
       }
       throw error
     }
   }
 
-  // Sensor Readings
   async getSensorReadings(params?: { sensor_type?: string; limit?: number }) {
     const queryParams = new URLSearchParams()
     if (params?.sensor_type) queryParams.append('sensor_type', params.sensor_type)
     if (params?.limit) queryParams.append('limit', params.limit.toString())
-    
+
     return this.request<{ results: SensorReading[] }>(`/api/sensor-readings/?${queryParams}`)
   }
 
@@ -51,12 +47,11 @@ class APIService {
     return this.request<SensorReading>(`/api/sensor-readings/latest/?sensor_type=${sensorType}`)
   }
 
-  // Grid Data
   async getGridData(params?: { data_type?: string; limit?: number }) {
     const queryParams = new URLSearchParams()
     if (params?.data_type) queryParams.append('data_type', params.data_type)
     if (params?.limit) queryParams.append('limit', params.limit.toString())
-    
+
     return this.request<{ results: GridData[] }>(`/api/grid-data/?${queryParams}`)
   }
 
@@ -68,7 +63,6 @@ class APIService {
     return this.request<GridData>(`/api/grid-data/weather/`)
   }
 
-  // Energy Sources
   async getEnergySources() {
     return this.request<{ results: EnergySource[] }>(`/api/energy-sources/`)
   }
@@ -77,7 +71,6 @@ class APIService {
     return this.request<EnergySource[]>(`/api/energy-sources/available/`)
   }
 
-  // Loads
   async getLoads() {
     return this.request<{ results: Load[] }>(`/api/loads/`)
   }
@@ -86,13 +79,11 @@ class APIService {
     return this.request<Load[]>(`/api/loads/critical/`)
   }
 
-  // Switch Events
   async getSwitchEvents(limit?: number) {
     const queryParams = limit ? `?limit=${limit}` : ''
     return this.request<{ results: SourceSwitchEvent[] }>(`/api/switch-events/${queryParams}`)
   }
 
-  // AI Endpoints
   async getAIStatus() {
     return this.request<{ available: boolean; models_loaded: boolean }>(`/api/ai/status/`)
   }
@@ -124,7 +115,6 @@ class APIService {
     })
   }
 
-  // Energy Optimization
   async optimizeSource(data: { loads: any[] }) {
     return this.request<any>(`/api/optimization/recommend/`, {
       method: 'POST',
@@ -132,7 +122,6 @@ class APIService {
     })
   }
 
-  // User Preferences
   async getUserPreferences() {
     return this.request<any>(`/api/preferences/`)
   }

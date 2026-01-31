@@ -12,9 +12,8 @@ interface PowerDistributionProps {
 }
 
 export default function PowerDistribution({ solarOutput, batteryOutput, gridOutput, className }: PowerDistributionProps) {
-  // Calculate total and percentages
   const total = solarOutput + batteryOutput + gridOutput
-  
+
   const data = [
     { name: 'Solar', value: solarOutput, color: '#4ade80', icon: Sun },
     { name: 'Battery', value: batteryOutput, color: '#facc15', icon: Battery },
@@ -40,18 +39,18 @@ export default function PowerDistribution({ solarOutput, batteryOutput, gridOutp
   }
 
   const CustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
-    if (percent < 0.05) return null // Don't show label for very small slices
-    
+    if (percent < 0.05) return null
+
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5
     const x = cx + radius * Math.cos(-midAngle * Math.PI / 180)
     const y = cy + radius * Math.sin(-midAngle * Math.PI / 180)
 
     return (
-      <text 
-        x={x} 
-        y={y} 
-        fill="white" 
-        textAnchor={x > cx ? 'start' : 'end'} 
+      <text
+        x={x}
+        y={y}
+        fill="white"
+        textAnchor={x > cx ? 'start' : 'end'}
         dominantBaseline="central"
         className="text-xs font-semibold"
       >
@@ -94,7 +93,7 @@ export default function PowerDistribution({ solarOutput, batteryOutput, gridOutp
             </PieChart>
           </ResponsiveContainer>
 
-          {/* Custom legend with icons */}
+          
           <div className="mt-4 space-y-2">
             {data.map((item, idx) => {
               const Icon = item.icon
@@ -102,8 +101,8 @@ export default function PowerDistribution({ solarOutput, batteryOutput, gridOutp
               return (
                 <div key={idx} className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
+                    <div
+                      className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: item.color }}
                     />
                     <Icon className="w-4 h-4" style={{ color: item.color }} />
@@ -118,7 +117,7 @@ export default function PowerDistribution({ solarOutput, batteryOutput, gridOutp
             })}
           </div>
 
-          {/* Total output */}
+          
           <div className="mt-4 pt-4 border-t border-gray-700/50">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-400">Total Output</span>

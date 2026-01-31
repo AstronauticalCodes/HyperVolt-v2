@@ -22,12 +22,12 @@ interface RealTimeMetricsProps {
   className?: string
 }
 
-export default function RealTimeMetrics({ 
-  powerConsumption, 
-  costRate, 
-  carbonRate, 
+export default function RealTimeMetrics({
+  powerConsumption,
+  costRate,
+  carbonRate,
   efficiency,
-  className 
+  className
 }: RealTimeMetricsProps) {
   const metrics: LiveMetric[] = [
     {
@@ -124,7 +124,7 @@ export default function RealTimeMetrics({
                   {metric.icon}
                 </div>
               </div>
-              
+
               <div className="flex items-baseline gap-1 mb-1">
                 <motion.span
                   key={metric.value}
@@ -151,7 +151,7 @@ export default function RealTimeMetrics({
         })}
       </div>
 
-      {/* Refresh indicator */}
+      
       <div className="mt-4 pt-4 border-t border-gray-700/50 flex items-center justify-between text-xs text-gray-400">
         <span>Auto-refresh: 5s</span>
         <motion.div

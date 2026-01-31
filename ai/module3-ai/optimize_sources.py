@@ -1,8 +1,3 @@
-"""
-Energy Source Optimization Algorithm for Vesta Energy Orchestrator
-Decides which energy source to use: Grid, Solar, or Battery
-Optimizes for both cost and carbon footprint
-"""
 
 import numpy as np
 import pandas as pd
@@ -12,221 +7,114 @@ from enum import Enum
 import json
 import os
 
-
 class EnergySource(Enum):
-    """Available energy sources"""
     GRID = "grid"
     SOLAR = "solar"
     BATTERY = "battery"
 
-
 class SourceOptimizer:
-    """
-    Optimization algorithm for energy source selection
-    Uses a weighted cost function to minimize both monetary cost and carbon footprint
-    """
-    
-    # Solar panel configuration constants
-    PANEL_EFFICIENCY = 0.20  # 20% efficiency (configurable)
-    PEAK_IRRADIANCE = 1000  # W/m² at peak (standard test condition)
-    
-    def __init__(self, 
+
+    PANEL_EFFICIENCY = 0.20
+    PEAK_IRRADIANCE = 1000
+
+    def __init__(self,
                  carbon_weight: float = 0.5,
                  cost_weight: float = 0.5,
-                 solar_capacity: float = 3.0,  # kW
-                 battery_capacity: float = 10.0,  # kWh
-                 battery_max_discharge: float = 2.0,  # kW
+                 solar_capacity: float = 3.0,
+                 battery_capacity: float = 10.0,
+                 battery_max_discharge: float = 2.0,
                  panel_efficiency: float = PANEL_EFFICIENCY):
-        """
-        Initialize the optimizer
-        
-        Args:
-            carbon_weight: Weight for carbon in optimization (0-1)
-            cost_weight: Weight for cost in optimization (0-1)
-            solar_capacity: Maximum solar panel output (kW)
-            battery_capacity: Battery storage capacity (kWh)
-            battery_max_discharge: Maximum battery discharge rate (kW)
-            panel_efficiency: Solar panel efficiency (0-1), default 0.20 (20%)
-        """
         self.carbon_weight = carbon_weight
         self.cost_weight = cost_weight
         self.solar_capacity = solar_capacity
         self.battery_capacity = battery_capacity
         self.battery_max_discharge = battery_max_discharge
-        self.battery_current_charge = battery_capacity * 0.8  # Start at 80%
+        self.battery_current_charge = battery_capacity * 0.8
         self.panel_efficiency = panel_efficiency
-        
-        # Cost parameters
-        self.battery_cycle_cost = 0.10  # ₹/kWh (battery degradation)
-        self.solar_maintenance_cost = 0.05  # ₹/kWh (negligible)
-        
-        # Battery Health Protection parameters
-        self.battery_degradation_cost_per_cycle = 5.0  # ₹ per full cycle
-    
+
+        self.battery_cycle_cost = 0.10
+        self.solar_maintenance_cost = 0.05
+
+        self.battery_degradation_cost_per_cycle = 5.0
+
     def get_dynamic_discharge_limit(self, potential_profit: float) -> float:
-        """
-        Calculate dynamic discharge limit based on potential profit
-        Protects battery health by limiting deep discharge unless profitable
-        
-        Args:
-            potential_profit: Expected profit from discharge (₹)
-            
-        Returns:
-            Minimum battery charge level (0-1, as fraction of capacity)
-        """
-        # Cycle cost estimation (e.g., a full cycle costs ₹5 in degradation)
         if potential_profit > self.battery_degradation_cost_per_cycle * 2:
-            return 0.10  # Allow deep discharge (10%) for high profit
+            return 0.10
         elif potential_profit > self.battery_degradation_cost_per_cycle:
-            return 0.25  # Moderate discharge (25%) for moderate profit
+            return 0.25
         else:
-            return 0.40  # Conservative discharge (40%) to extend life
-        
-    def calculate_solar_available(self, 
-                                   shortwave_radiation: float, 
+            return 0.40
+
+    def calculate_solar_available(self,
+                                   shortwave_radiation: float,
                                    cloud_cover: float,
                                    hour: int) -> float:
-        """
-        Calculate available solar power based on conditions
-        
-        Args:
-            shortwave_radiation: Shortwave radiation in W/m² (from Open-Meteo)
-            cloud_cover: Cloud cover percentage (0-100)
-            hour: Hour of day (0-23)
-            
-        Returns:
-            Available solar power in kW
-        """
-        # Only generate during daylight hours (6 AM - 6 PM)
         if hour < 6 or hour >= 18:
             return 0.0
-        
-        # Convert W/m² to kW using panel area and efficiency
-        # Assuming peak capacity corresponds to PEAK_IRRADIANCE (1000 W/m²) irradiance
-        panel_area = self.solar_capacity / (self.PEAK_IRRADIANCE / 1000 * self.panel_efficiency)  # m²
-        
-        # Calculate power from shortwave radiation
+
+        panel_area = self.solar_capacity / (self.PEAK_IRRADIANCE / 1000 * self.panel_efficiency)
+
         solar_power_kw = (shortwave_radiation / 1000) * panel_area * self.panel_efficiency
-        
-        # Reduce slightly by cloud cover (already factored into radiation, but add small penalty)
+
         cloud_factor = 1 - (cloud_cover / 100) * 0.1
-        
+
         solar_power = solar_power_kw * cloud_factor
-        
+
         return max(0, min(solar_power, self.solar_capacity))
-    
+
     def calculate_cost_score(self,
                             source: EnergySource,
                             power_needed: float,
                             grid_price: float) -> float:
-        """
-        Calculate cost score for using a particular source
-        Lower is better
-        
-        Args:
-            source: Energy source to evaluate
-            power_needed: Power required (kW)
-            grid_price: Current grid electricity price (₹/kWh)
-            
-        Returns:
-            Cost score (₹)
-        """
         if source == EnergySource.GRID:
             return power_needed * grid_price
         elif source == EnergySource.SOLAR:
             return power_needed * self.solar_maintenance_cost
         elif source == EnergySource.BATTERY:
             return power_needed * self.battery_cycle_cost
-        
+
         return 0.0
-    
+
     def calculate_carbon_score(self,
                                source: EnergySource,
                                power_needed: float,
                                carbon_intensity: float) -> float:
-        """
-        Calculate carbon score for using a particular source
-        Lower is better
-        
-        Args:
-            source: Energy source to evaluate
-            power_needed: Power required (kW)
-            carbon_intensity: Grid carbon intensity (gCO2eq/kWh)
-            
-        Returns:
-            Carbon score (gCO2eq)
-        """
         if source == EnergySource.GRID:
             return power_needed * carbon_intensity
         elif source == EnergySource.SOLAR:
-            # Solar has minimal carbon footprint (manufacturing amortized)
-            return power_needed * 50  # 50 gCO2eq/kWh lifecycle emissions
+            return power_needed * 50
         elif source == EnergySource.BATTERY:
-            # Battery depends on how it was charged
-            # Assume average grid carbon (conservative estimate)
-            return power_needed * carbon_intensity * 0.8  # 80% of grid
-        
+            return power_needed * carbon_intensity * 0.8
+
         return 0.0
-    
+
     def calculate_combined_score(self,
                                  cost_score: float,
                                  carbon_score: float) -> float:
-        """
-        Calculate weighted combined score
-        Normalizes carbon to cost equivalent for comparison
-        
-        Args:
-            cost_score: Cost in ₹
-            carbon_score: Carbon in gCO2eq
-            
-        Returns:
-            Combined score (lower is better)
-        """
-        # Normalize carbon to cost (1 kg CO2 = ₹10 penalty)
         carbon_cost_equivalent = (carbon_score / 1000) * 10
-        
-        combined = (self.cost_weight * cost_score + 
+
+        combined = (self.cost_weight * cost_score +
                    self.carbon_weight * carbon_cost_equivalent)
-        
+
         return combined
-    
+
     def optimize_source(self,
                        power_needed: float,
                        conditions: Dict) -> Tuple[List[Tuple[EnergySource, float]], Dict]:
-        """
-        Optimize energy source selection for given power requirement
-        
-        Args:
-            power_needed: Power required (kW)
-            conditions: Dictionary with current conditions:
-                - shortwave_radiation: W/m² (from Open-Meteo)
-                - cloud_cover: 0-100
-                - hour: 0-23
-                - carbon_intensity: gCO2eq/kWh
-                - grid_price: ₹/kWh
-                
-        Returns:
-            Tuple of (source allocation list, decision metrics)
-            Source allocation: [(EnergySource, kW), ...]
-        """
-        # Calculate available power from each source
         solar_available = self.calculate_solar_available(
-            conditions.get('shortwave_radiation', conditions.get('solar_radiation', 0)),  # Backward compatible
+            conditions.get('shortwave_radiation', conditions.get('solar_radiation', 0)),
             conditions['cloud_cover'],
             conditions['hour']
         )
-        
-        # Calculate potential profit from battery discharge (for health protection)
+
         potential_profit = power_needed * (conditions['grid_price'] - self.battery_cycle_cost)
         discharge_limit = self.get_dynamic_discharge_limit(potential_profit)
-        
-        # Battery available considering health protection
+
         battery_available = min(
             self.battery_max_discharge,
             max(0, self.battery_current_charge - (self.battery_capacity * discharge_limit))
         )
-        
-        # Calculate scores for each source
+
         scores = {}
         for source in EnergySource:
             cost_score = self.calculate_cost_score(
@@ -236,49 +124,42 @@ class SourceOptimizer:
                 source, power_needed, conditions['carbon_intensity']
             )
             combined_score = self.calculate_combined_score(cost_score, carbon_score)
-            
+
             scores[source] = {
                 'cost': cost_score,
                 'carbon': carbon_score,
                 'combined': combined_score
             }
-        
-        # Decision logic: prioritize based on availability and scores
+
         allocation = []
         remaining_power = power_needed
-        
-        # 1. Use solar first if available (always best)
+
         if solar_available > 0 and remaining_power > 0:
             solar_used = min(solar_available, remaining_power)
             allocation.append((EnergySource.SOLAR, solar_used))
             remaining_power -= solar_used
-        
-        # 2. Decide between battery and grid based on scores
+
         if remaining_power > 0:
-            # Check if battery is better than grid
-            if (battery_available > 0 and 
+            if (battery_available > 0 and
                 scores[EnergySource.BATTERY]['combined'] < scores[EnergySource.GRID]['combined']):
-                # Use battery
                 battery_used = min(battery_available, remaining_power)
                 allocation.append((EnergySource.BATTERY, battery_used))
                 remaining_power -= battery_used
                 self.battery_current_charge -= battery_used
-        
-        # 3. Use grid for any remaining power
+
         if remaining_power > 0:
             allocation.append((EnergySource.GRID, remaining_power))
-        
-        # Calculate actual costs and carbon
+
         actual_cost = sum([
             self.calculate_cost_score(source, power, conditions['grid_price'])
             for source, power in allocation
         ])
-        
+
         actual_carbon = sum([
             self.calculate_carbon_score(source, power, conditions['carbon_intensity'])
             for source, power in allocation
         ])
-        
+
         metrics = {
             'total_power': power_needed,
             'solar_available': solar_available,
@@ -290,40 +171,23 @@ class SourceOptimizer:
             'battery_charge': self.battery_current_charge,
             'scores': {k.value: v for k, v in scores.items()}
         }
-        
+
         return allocation, metrics
-    
+
     def charge_battery_from_solar(self, solar_excess: float):
-        """
-        Charge battery from excess solar power
-        
-        Args:
-            solar_excess: Excess solar power available (kW)
-        """
         charge_amount = min(
             solar_excess,
             self.battery_capacity - self.battery_current_charge
         )
         self.battery_current_charge += charge_amount
         return charge_amount
-    
+
     def simulate_day(self, df_day: pd.DataFrame) -> pd.DataFrame:
-        """
-        Simulate optimal source selection for a full day
-        
-        Args:
-            df_day: DataFrame with hourly data for one day
-            
-        Returns:
-            DataFrame with optimization results for each hour
-        """
         results = []
-        
+
         for idx, row in df_day.iterrows():
-            # Power needed (convert kWh to kW for 1-hour period)
             power_needed = row['total_energy_kwh']
-            
-            # Current conditions
+
             conditions = {
                 'shortwave_radiation': row.get('shortwave_radiation', row.get('solar_radiation_proxy', 0) * 800),
                 'cloud_cover': row['cloud_cover'],
@@ -331,21 +195,19 @@ class SourceOptimizer:
                 'carbon_intensity': row['carbon_intensity'],
                 'grid_price': row['grid_price_per_kwh']
             }
-            
-            # Optimize source selection
+
             allocation, metrics = self.optimize_source(power_needed, conditions)
-            
-            # Check if there's excess solar for battery charging
+
             solar_available = metrics['solar_available']
             solar_used = sum([p for s, p in allocation if s == EnergySource.SOLAR])
             solar_excess = solar_available - solar_used
-            
+
             if solar_excess > 0:
                 charged = self.charge_battery_from_solar(solar_excess)
                 metrics['battery_charged'] = charged
             else:
                 metrics['battery_charged'] = 0
-            
+
             results.append({
                 'timestamp': row['timestamp'],
                 'hour': row['hour'],
@@ -356,47 +218,38 @@ class SourceOptimizer:
                 'battery_charge': metrics['battery_charge'],
                 'battery_charged': metrics['battery_charged']
             })
-        
+
         return pd.DataFrame(results)
 
-
 def main():
-    """
-    Main function to demonstrate source optimization
-    """
     print("=" * 70)
     print("ENERGY SOURCE OPTIMIZATION - DEMONSTRATION")
     print("=" * 70)
-    
-    # Load data
+
     data_path = 'data/raw/integrated_dataset.csv'
     if not os.path.exists(data_path):
         print(f"Error: Dataset not found at {data_path}")
         return
-    
+
     df = pd.read_csv(data_path)
     df['timestamp'] = pd.to_datetime(df['timestamp'])
-    
-    # Initialize optimizer
-    # Balanced between cost and carbon (50-50)
+
     optimizer = SourceOptimizer(
         carbon_weight=0.5,
         cost_weight=0.5,
-        solar_capacity=3.0,  # 3 kW solar panels
-        battery_capacity=10.0,  # 10 kWh battery
-        battery_max_discharge=2.0  # Max 2 kW discharge
+        solar_capacity=3.0,
+        battery_capacity=10.0,
+        battery_max_discharge=2.0
     )
-    
-    # Simulate one day
+
     print("\nSimulating optimal source selection for one day...")
-    df_day = df.head(24)  # First 24 hours
+    df_day = df.head(24)
     results = optimizer.simulate_day(df_day)
-    
-    # Print results
+
     print("\n" + "=" * 70)
     print("HOURLY OPTIMIZATION RESULTS")
     print("=" * 70)
-    
+
     for idx, row in results.iterrows():
         print(f"\nHour {row['hour']:02d}:00")
         print(f"  Power needed: {row['power_needed']:.3f} kW")
@@ -408,37 +261,33 @@ def main():
             print(f" (+{row['battery_charged']:.2f} kWh charged)")
         else:
             print()
-    
-    # Summary statistics
+
     print("\n" + "=" * 70)
     print("DAILY SUMMARY")
     print("=" * 70)
-    
+
     total_cost = results['cost'].sum()
     total_carbon = results['carbon'].sum()
-    
-    # Calculate what it would cost using only grid
+
     grid_only_cost = (df_day['total_energy_kwh'] * df_day['grid_price_per_kwh']).sum()
     grid_only_carbon = (df_day['total_energy_kwh'] * df_day['carbon_intensity']).sum()
-    
+
     print(f"\nWith Optimization:")
     print(f"  Total Cost:   ₹{total_cost:.2f}")
     print(f"  Total Carbon: {total_carbon/1000:.2f} kg CO2")
-    
+
     print(f"\nGrid Only (No Optimization):")
     print(f"  Total Cost:   ₹{grid_only_cost:.2f}")
     print(f"  Total Carbon: {grid_only_carbon/1000:.2f} kg CO2")
-    
+
     print(f"\nSavings:")
     print(f"  Cost Saved:   ₹{grid_only_cost - total_cost:.2f} ({(1 - total_cost/grid_only_cost)*100:.1f}%)")
     print(f"  Carbon Saved: {(grid_only_carbon - total_carbon)/1000:.2f} kg CO2 ({(1 - total_carbon/grid_only_carbon)*100:.1f}%)")
-    
-    # Save results
+
     output_path = 'data/optimization_results.csv'
     results.to_csv(output_path, index=False)
     print(f"\n✓ Results saved to: {output_path}")
-    
-    # Save optimizer configuration
+
     config = {
         'carbon_weight': optimizer.carbon_weight,
         'cost_weight': optimizer.cost_weight,
@@ -447,18 +296,17 @@ def main():
         'battery_max_discharge': optimizer.battery_max_discharge,
         'simulation_date': datetime.now().isoformat()
     }
-    
+
     config_path = 'models/optimizer_config.json'
     os.makedirs('models', exist_ok=True)
     with open(config_path, 'w') as f:
         json.dump(config, f, indent=2)
-    
+
     print(f"✓ Configuration saved to: {config_path}")
-    
+
     print("\n" + "=" * 70)
     print("✓ OPTIMIZATION DEMONSTRATION COMPLETE!")
     print("=" * 70)
-
 
 if __name__ == "__main__":
     main()

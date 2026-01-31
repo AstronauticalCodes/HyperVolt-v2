@@ -7,8 +7,8 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatTimestamp(timestamp: string | Date): string {
   const date = new Date(timestamp)
-  return date.toLocaleTimeString('en-US', { 
-    hour: '2-digit', 
+  return date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
     minute: '2-digit',
     second: '2-digit'
   })
@@ -16,7 +16,7 @@ export function formatTimestamp(timestamp: string | Date): string {
 
 export function formatDate(timestamp: string | Date): string {
   const date = new Date(timestamp)
-  return date.toLocaleDateString('en-US', { 
+  return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',

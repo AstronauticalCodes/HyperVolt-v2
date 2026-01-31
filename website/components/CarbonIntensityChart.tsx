@@ -15,7 +15,6 @@ interface CarbonIntensityChartProps {
 }
 
 export default function CarbonIntensityChart({ data, className }: CarbonIntensityChartProps) {
-  // Format data for chart
   const chartData = data.map(item => ({
     time: new Date(item.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
     carbon: item.value,
@@ -35,7 +34,6 @@ export default function CarbonIntensityChart({ data, className }: CarbonIntensit
     return null
   }
 
-  // Calculate average
   const avgCarbon = chartData.length > 0
     ? chartData.reduce((sum, d) => sum + d.carbon, 0) / chartData.length
     : 0
@@ -68,12 +66,12 @@ export default function CarbonIntensityChart({ data, className }: CarbonIntensit
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-            <XAxis 
-              dataKey="time" 
+            <XAxis
+              dataKey="time"
               stroke="#9CA3AF"
               style={{ fontSize: '12px' }}
             />
-            <YAxis 
+            <YAxis
               stroke="#9CA3AF"
               style={{ fontSize: '12px' }}
               label={{ value: 'gCO₂/kWh', angle: -90, position: 'insideLeft', style: { fill: '#9CA3AF' } }}
@@ -95,7 +93,7 @@ export default function CarbonIntensityChart({ data, className }: CarbonIntensit
         </div>
       )}
 
-      {/* Info footer */}
+      
       <div className="mt-4 pt-4 border-t border-gray-700/50 text-xs text-gray-400">
         <p>Lower values indicate cleaner energy. Best time to use high-power appliances is during low carbon periods.</p>
       </div>
