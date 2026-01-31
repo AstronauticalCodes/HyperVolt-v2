@@ -4,6 +4,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
 from datetime import timedelta
+from django.http import JsonResponse
+from .models import SensorReading
+from django.utils import timezone
 
 from .models import SensorReading, GridData, UserPreferences, AIDecision, EnergySource, Load, SourceSwitchEvent
 from .serializers import (
@@ -32,57 +35,37 @@ class SensorReadingViewSet(viewsets.ModelViewSet):
     ordering_fields = ['timestamp', 'created_at']
 
     @action(detail=False, methods=['get'])
-    def latest(self, request):
-        """Get the latest reading for each sensor."""
-        sensor_type = request.query_params.get('sensor_type')
-        sensor_id = request.query_params.get('sensor_id')
-        
-        queryset = self.queryset
-        if sensor_type:
-            queryset = queryset.filter(sensor_type=sensor_type)
-        if sensor_id:
-            queryset = queryset.filter(sensor_id=sensor_id)
-        
-        # Get distinct sensor IDs and their latest readings
-        latest_readings = []
-        seen = set()
-        
-        for reading in queryset:
-            key = (reading.sensor_type, reading.sensor_id)
-            if key not in seen:
-                latest_readings.append(reading)
-                seen.add(key)
-        
-        serializer = self.get_serializer(latest_readings, many=True)
-        return Response(serializer.data)
-    
-    @action(detail=False, methods=['get'])
     def all_latest(self, request):
-        """Get all sensor readings as a single consolidated object."""
-        sensor_data = {
-            'temperature': 25.0,
-            'humidity': 50.0,
-            'ldr': 2000,
-            'current': 1.0,
-            'voltage': 230.0,
-        }
+        """
+        Get all sensor readings as a single consolidated object.
+        Fetches the absolute latest database entry for each sensor type.
+        """
+        # The sensor types currently used by your ESP32 and Models
+        sensor_types = ['temperature', 'humidity', 'light', 'current', 'voltage']
+        sensor_data = {}
         last_updated = None
-        
-        for sensor_type in sensor_data.keys():
-            reading = self.queryset.filter(
-                sensor_type=sensor_type
+
+        for s_type in sensor_types:
+            # Query the database for the single most recent record of this type
+            reading = SensorReading.objects.filter(
+                sensor_type=s_type
             ).order_by('-timestamp').first()
-            
+
             if reading:
-                sensor_data[sensor_type] = float(reading.value)
+                # Convert Decimal to float for JSON serialization
+                sensor_data[s_type] = float(reading.value)
+                # Track the most recent overall timestamp for the UI
                 if not last_updated or reading.timestamp > last_updated:
                     last_updated = reading.timestamp
-        
+            else:
+                # Fallback if no data exists yet for this specific sensor type
+                sensor_data[s_type] = 0.0
+
         return Response({
             'timestamp': timezone.now().isoformat(),
             'last_sensor_update': last_updated.isoformat() if last_updated else None,
             'sensors': sensor_data,
-            'source': 'database'
+            'source': 'live_database_query'
         })
 
     @action(detail=False, methods=['get'])

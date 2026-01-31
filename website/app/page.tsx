@@ -16,7 +16,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const POLL_INTERVAL = 5000
 const BATTERY_CAPACITY_MAH = 20000
 const BATTERY_MAX_VOLTAGE = 2.5
-const BATTERY_MAX_OUTPUT_KW = 0.05
+const BATTERY_MAX_OUTPUT_KW = 1
 
 // Dynamic import for the EnergyFlow component
 const EnergyFlow = dynamic(() => import('@/components/EnergyFlow'), {
@@ -58,7 +58,7 @@ export default function Home() {
   const [isConnected, setIsConnected] = useState(false)
   const [isAiThinking, setIsAiThinking] = useState(false)
 
-  const [sensorData, setSensorData] = useState({ temperature: 25, humidity: 50, ldr: 2000, current: 1.5, voltage: 12 })
+  const [sensorData, setSensorData] = useState({ temperature: 25, humidity: 50, light: 2000, current: 1.5, voltage: 12 })
   const [batteryState, setBatteryState] = useState({ capacityMah: BATTERY_CAPACITY_MAH, currentMah: BATTERY_CAPACITY_MAH * 0.85, isDraining: false, drainRateW: 0 })
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null)
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null)
@@ -327,8 +327,8 @@ export default function Home() {
 
       {/* 1. HERO SECTION (Full Height) */}
       <HeroSection
-        lightIntensity={sensorData.ldr}
-        activeSource={activeSource}
+          lightIntensity={sensorData.light}
+          activeSource={activeSource}
         brightnessThreshold={500}
         weatherCondition={weatherData?.is_day ? 'clear-day' : 'night'}
         onScrollClick={scrollToDashboard}
@@ -460,7 +460,7 @@ export default function Home() {
                   {[
                     { label: 'Temperature', value: `${sensorData.temperature.toFixed(1)}°C`, color: 'text-red-400' },
                     { label: 'Humidity', value: `${sensorData.humidity.toFixed(0)}%`, color: 'text-blue-400' },
-                    { label: 'LDR', value: sensorData.ldr.toFixed(0), color: 'text-yellow-400' },
+                    { label: 'LDR', value: sensorData.light.toFixed(0), color: 'text-yellow-400' },
                     { label: 'Current', value: `${sensorData.current.toFixed(2)}A`, color: 'text-green-400' },
                     { label: 'Voltage', value: `${sensorData.voltage.toFixed(0)}V`, color: 'text-purple-400' },
                     { label: 'Solar Power', value: `${solarPowerKW.toFixed(3)}kW`, color: 'text-green-500', highlight: true },

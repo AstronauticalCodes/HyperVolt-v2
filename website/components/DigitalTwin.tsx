@@ -75,23 +75,43 @@ function GeometricHouse({
 }
 
 // --- 2. The Real GLTF Model ---
-function GLTFModel({ onLoad }: { onLoad: () => void }) {
-  // This will SUSPEND if loading, or THROW if failed
-    // during day
+function GLTFModel({
+  onLoad,
+  lightIntensity,
+  brightnessThreshold
+}: {
+  onLoad: () => void,
+  lightIntensity: number,
+  brightnessThreshold: number
+}) {
   const gltf = useGLTF('/models/tiny_isometric_room.glb')
-    // during night
-    // const gltf = useGLTF('/models/isometric_room_school.glb')
 
-  // Report success once loaded
+  // Calculate how "dark" it is. 0 = bright, 1 = total darkness
+  const darknessFactor = Math.max(0, Math.min(1, (brightnessThreshold - lightIntensity) / brightnessThreshold))
+
   useEffect(() => {
     onLoad()
-  }, [onLoad])
+
+    // Traverse the model to find specific materials to "light up"
+    gltf.scene.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh
+        const material = mesh.material as THREE.MeshStandardMaterial
+
+        // Logic: If LDR is low, make "Windows" or "Glass" emissive (glow)
+        if (mesh.name.toLowerCase().includes('window') || mesh.name.toLowerCase().includes('glass')) {
+          material.emissive = new THREE.Color("#F6E05E") // Warm yellow glow
+          material.emissiveIntensity = darknessFactor * 2 // Glow intensifies as room gets darker
+        }
+      }
+    })
+  }, [gltf, lightIntensity, darknessFactor, onLoad])
 
   return (
     <primitive
       object={gltf.scene}
       position={[0, -1, 0]}
-      scale={0.02} // Adjusted scale - if too small, increase this
+      scale={0.02}
     />
   )
 }
@@ -124,6 +144,7 @@ class ModelErrorBoundary extends React.Component<
 }
 
 // --- 4. Main Scene Component ---
+// --- 4. Main Scene Component (Updated Fix) ---
 function Scene({
   lightIntensity,
   brightnessThreshold,
@@ -135,18 +156,25 @@ function Scene({
 }) {
   const needsArtificialLight = lightIntensity < brightnessThreshold
   const artificialLightIntensity = needsArtificialLight
-    ? ((brightnessThreshold - lightIntensity) / 100) * 2
+    ? ((brightnessThreshold - lightIntensity) / 100) * 5
     : 0
+
+  // Calculate dynamic ambient light based on LDR sensor
+  const dynamicAmbient = Math.max(0.1, (lightIntensity / 100) * 1.5)
 
   return (
     <>
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
-      <Environment />
+      <ambientLight intensity={dynamicAmbient} />
+      <directionalLight
+        position={[10, 10, 5]}
+        intensity={lightIntensity > brightnessThreshold ? 1 : 0.2}
+        castShadow
+      />
 
       <ModelErrorBoundary
         onError={() => onLoadStateChange('error')}
         fallback={
+          // Provide the actual props here instead of "..."
           <GeometricHouse
             lightIntensity={lightIntensity}
             brightnessThreshold={brightnessThreshold}
@@ -157,15 +185,18 @@ function Scene({
       >
         <Suspense fallback={null}>
           <group>
-            <GLTFModel onLoad={() => onLoadStateChange('success')} />
-            {/* Add lights to the GLTF model specifically if needed */}
+            <GLTFModel
+              onLoad={() => onLoadStateChange('success')}
+              lightIntensity={lightIntensity}
+              brightnessThreshold={brightnessThreshold}
+            />
             {needsArtificialLight && (
               <pointLight
-                position={[0, 5, 0]}
+                position={[0, 2, 0]}
                 intensity={artificialLightIntensity}
                 color="#FFE5B4"
-                distance={20}
-                decay={2}
+                distance={15}
+                castShadow
               />
             )}
           </group>
