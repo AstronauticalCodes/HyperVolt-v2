@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Terminal, X, ChevronDown, ChevronUp } from 'lucide-react'
 import { StrategyLogEntry } from '@/lib/types'
@@ -14,6 +14,11 @@ interface LogsViewerProps {
 export default function LogsViewer({ logs, className }: LogsViewerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
+  const [actualLogCount, setActualLogCount] = useState(logs.length)
+
+  const handleLogCountChange = useCallback((count: number) => {
+    setActualLogCount(count)
+  }, [])
 
   return (
     <>
@@ -27,11 +32,11 @@ export default function LogsViewer({ logs, className }: LogsViewerProps) {
         className="fixed bottom-6 right-6 z-50 p-4 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full shadow-2xl hover:shadow-purple-500/50 transition-all duration-300"
         aria-label="Toggle logs viewer"
       >
-        <div className="relative">
+      <div className="relative">
           <Terminal className="w-6 h-6 text-white" />
-          {logs.length > 0 && (
+          {actualLogCount > 0 && (
             <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-              {logs.length > 99 ? '99+' : logs.length}
+              {actualLogCount > 99 ? '99+' : actualLogCount}
             </span>
           )}
         </div>
@@ -57,7 +62,7 @@ export default function LogsViewer({ logs, className }: LogsViewerProps) {
                   System Logs
                 </h3>
                 <span className="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded">
-                  {logs.length} events
+                  {actualLogCount} events
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -84,7 +89,7 @@ export default function LogsViewer({ logs, className }: LogsViewerProps) {
 
             {/* Logs content */}
             <div className={isExpanded ? 'h-[calc(100%-56px)]' : 'h-96'}>
-              <StrategyNarrator logs={logs} className="h-full" />
+              <StrategyNarrator initialLogs={logs} className="h-full" onLogCountChange={handleLogCountChange} />
             </div>
           </motion.div>
         )}
