@@ -11,7 +11,6 @@ interface EnergyChartProps {
 }
 
 export default function EnergyChart({ forecastData, historicalData = [], className }: EnergyChartProps) {
-  // Combine historical and forecast data
   const chartData = [
     ...historicalData.map((item, idx) => ({
       time: new Date(item.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
@@ -67,18 +66,18 @@ export default function EnergyChart({ forecastData, historicalData = [], classNa
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-          <XAxis 
-            dataKey="time" 
+          <XAxis
+            dataKey="time"
             stroke="#9CA3AF"
             style={{ fontSize: '12px' }}
           />
-          <YAxis 
+          <YAxis
             stroke="#9CA3AF"
             style={{ fontSize: '12px' }}
             label={{ value: 'kWh', angle: -90, position: 'insideLeft', style: { fill: '#9CA3AF' } }}
           />
           <Tooltip content={<CustomTooltip />} />
-          <Legend 
+          <Legend
             wrapperStyle={{ fontSize: '12px' }}
             iconType="line"
           />
@@ -104,7 +103,7 @@ export default function EnergyChart({ forecastData, historicalData = [], classNa
         </AreaChart>
       </ResponsiveContainer>
 
-      {/* Legend info */}
+      
       <div className="mt-4 flex items-center gap-6 text-xs text-gray-400">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-blue-500" />

@@ -10,16 +10,14 @@ interface SensorMetricsProps {
   className?: string
 }
 
-export default function SensorMetrics({ 
-  temperature, 
+export default function SensorMetrics({
+  temperature,
   solarVoltage,
-  className 
+  className
 }: SensorMetricsProps) {
-  // Determine temperature status (optimal range 20-28°C)
   const tempStatus = temperature < 20 ? 'cold' : temperature > 28 ? 'hot' : 'optimal'
   const tempColor = tempStatus === 'cold' ? 'blue' : tempStatus === 'hot' ? 'red' : 'green'
-  
-  // Determine solar voltage status (good if above 12V for a typical solar panel)
+
   const solarStatus = solarVoltage < 5 ? 'low' : solarVoltage > 12 ? 'optimal' : 'moderate'
   const solarColor = solarStatus === 'low' ? 'gray' : solarStatus === 'optimal' ? 'yellow' : 'orange'
 
@@ -78,7 +76,7 @@ export default function SensorMetrics({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {/* Temperature Metric */}
+        
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -95,7 +93,7 @@ export default function SensorMetrics({
               <Thermometer className="w-4 h-4" />
             </div>
           </div>
-          
+
           <div className="flex items-baseline gap-1 mb-1">
             <motion.span
               key={temperature}
@@ -115,7 +113,7 @@ export default function SensorMetrics({
           </div>
         </motion.div>
 
-        {/* Solar Voltage Metric */}
+        
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -132,7 +130,7 @@ export default function SensorMetrics({
               <Sun className="w-4 h-4" />
             </div>
           </div>
-          
+
           <div className="flex items-baseline gap-1 mb-1">
             <motion.span
               key={solarVoltage}
@@ -153,7 +151,7 @@ export default function SensorMetrics({
         </motion.div>
       </div>
 
-      {/* Status indicator */}
+      
       <div className="mt-4 pt-4 border-t border-gray-700/50 flex items-center justify-between text-xs text-gray-400">
         <span>Live sensor data</span>
         <div className="flex items-center gap-1">

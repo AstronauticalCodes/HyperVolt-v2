@@ -6,14 +6,10 @@ import { AlertCircle, CheckCircle, Info, Zap } from 'lucide-react'
 import { cn, formatTimestamp } from '@/lib/utils'
 import { StrategyLogEntry } from '@/lib/types'
 
-// NOTE: We removed the useWebSocket import since you are using REST API polling
-
 interface StrategyNarratorProps {
   initialLogs?: StrategyLogEntry[]
   className?: string
   onLogCountChange?: (count: number) => void
-  // 'logs' prop removed or made optional if you passed it from parent,
-  // but we will manage state internally via polling.
 }
 
 function LogItem({ log }: { log: StrategyLogEntry }) {
@@ -68,46 +64,37 @@ export default function StrategyNarrator({ initialLogs = [], className, onLogCou
   const scrollRef = useRef<HTMLDivElement>(null)
   const [logs, setLogs] = useState<StrategyLogEntry[]>(initialLogs)
 
-  // Track IDs we've already seen to prevent duplicates
   const processedIds = useRef<Set<string>>(new Set(initialLogs.map(l => l.id)))
 
-  // Notify parent of log count changes
   useEffect(() => {
     onLogCountChange?.(logs.length)
   }, [logs.length, onLogCountChange])
 
-  // --- POLLING LOGIC ---
   const fetchRecentDecisions = useCallback(async () => {
     try {
-      // Poll the 'recent' endpoint from your AIDecisionViewSet
-      // Adjust URL if your API base URL is different
       const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
       const res = await fetch(`${API_BASE}/api/ai-decisions/recent/?hours=1`)
 
       if (res.ok) {
         const decisions = await res.json()
 
-        // Map Django AI decisions to StrategyLogEntry format
         const newLogs: StrategyLogEntry[] = []
 
-        // Handle array response
         const decisionList = Array.isArray(decisions) ? decisions : (decisions.results || [])
 
         decisionList.forEach((decision: any) => {
-          // Use DB ID or create a unique one
           const id = decision.id?.toString() || `decision-${decision.timestamp}`
 
           if (!processedIds.current.has(id)) {
             processedIds.current.add(id)
 
-            // Extract meaningful info from the decision JSON
             const details = decision.decision?.recommendation || decision.reasoning || "AI Optimized Source"
             const source = decision.decision?.current_decision?.primary_source || "AUTO"
 
             newLogs.push({
               id,
               timestamp: decision.timestamp,
-              type: 'decision', // Force type to 'decision' for the narrator
+              type: 'decision',
               message: `AI Decision: Switched to ${source.toUpperCase()}`,
               details: details
             })
@@ -115,7 +102,6 @@ export default function StrategyNarrator({ initialLogs = [], className, onLogCou
         })
 
         if (newLogs.length > 0) {
-          // Add new logs to state, keeping the list size manageable (e.g., last 50)
           setLogs(prev => [...prev, ...newLogs].slice(-50))
         }
       }
@@ -124,14 +110,12 @@ export default function StrategyNarrator({ initialLogs = [], className, onLogCou
     }
   }, [])
 
-  // Poll every 5 seconds
   useEffect(() => {
-    fetchRecentDecisions() // Initial fetch
+    fetchRecentDecisions()
     const interval = setInterval(fetchRecentDecisions, 5000)
     return () => clearInterval(interval)
   }, [fetchRecentDecisions])
 
-  // Auto-scroll to bottom when logs change
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight

@@ -9,9 +9,8 @@ import StatsGrid from '@/components/StatsGrid'
 import EnergyChart from '@/components/EnergyChart'
 import PowerDistribution from '@/components/PowerDistribution'
 import LogsViewer from '@/components/LogsViewer'
-import HeroSection from '@/components/HeroSection' // Import the Hero Section
+import HeroSection from '@/components/HeroSection'
 
-// --- CONFIGURATION ---
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const POLL_INTERVAL = 5000
 const AI_TRAINING_INTERVAL = 120000
@@ -19,7 +18,6 @@ const BATTERY_CAPACITY_MAH = 20000
 const BATTERY_MAX_VOLTAGE = 2.5
 const BATTERY_MAX_OUTPUT_KW = 1
 
-// Dynamic import for the EnergyFlow component
 const EnergyFlow = dynamic(() => import('@/components/EnergyFlow'), {
   ssr: false,
   loading: () => (
@@ -29,7 +27,6 @@ const EnergyFlow = dynamic(() => import('@/components/EnergyFlow'), {
   ),
 })
 
-// Types
 interface WeatherData {
   temperature: number
   humidity: number
@@ -46,10 +43,8 @@ interface PeakHourSettings {
 }
 
 export default function Home() {
-  // --- REFS ---
-  const dashboardRef = useRef<HTMLDivElement>(null) // Ref for scrolling
+  const dashboardRef = useRef<HTMLDivElement>(null)
 
-  // --- STATE ---
   const [activeSource, setActiveSource] = useState<'solar' | 'battery' | 'grid'>('grid')
   const [strategyLogs, setStrategyLogs] = useState<StrategyLogEntry[]>([])
   const [forecastData, setForecastData] = useState<ForecastPrediction[]>([])
@@ -75,7 +70,6 @@ export default function Home() {
   const [gridReason, setGridReason] = useState<string | null>(null)
   const previousSourceRef = useRef<'solar' | 'battery' | 'grid'>('grid')
 
-  // --- REFS (Critical for breaking dependency loops in intervals) ---
   const stateRef = useRef({
     sensorData,
     batteryState,
@@ -84,7 +78,6 @@ export default function Home() {
     solarPowerKW: 0
   })
 
-  // Keep ref synchronized with state
   useEffect(() => {
     stateRef.current = {
       sensorData,
@@ -95,7 +88,6 @@ export default function Home() {
     }
   }, [sensorData, batteryState, powerConsumption, activeSource])
 
-  // --- COMPUTED VALUES ---
   const solarPowerKW = (sensorData.voltage * sensorData.current) / 1000
   const batteryPercentage = (batteryState.currentMah / batteryState.capacityMah) * 100
 
@@ -110,9 +102,6 @@ export default function Home() {
 
   const addLog = useCallback((log: StrategyLogEntry) => setStrategyLogs(prev => [...prev.slice(-50), log]), [])
 
-  // --- API INTERACTION (POLLING) ---
-
-  // 1. Fetch Sensor Data
   const fetchSensorData = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/sensor-readings/all_latest/`)
@@ -126,7 +115,6 @@ export default function Home() {
     }
   }, [])
 
-  // 2. Logic to determine source with priority: Solar > Battery > Grid
   const determineActiveSource = useCallback((): { source: 'solar' | 'battery' | 'grid', reason: string | null } => {
     const currentSolar = stateRef.current.solarPowerKW
     const consumption = stateRef.current.powerConsumption
@@ -134,30 +122,24 @@ export default function Home() {
     const hour = new Date().getHours()
     const isDaytime = hour >= 6 && hour < 17
     const isEveningPeak = hour >= 17 && hour <= 20
-    
-    // Priority 1: Solar if available and sufficient during daytime
+
     if (currentSolar >= consumption * 0.5 && isDaytime) {
       return { source: 'solar', reason: null }
     }
-    
-    // Priority 2: Battery if charged
+
     if (batteryPct > 15) {
-      // During daytime (before evening peak), save battery for evening peak when solar won't work
       if (isDaytime && batteryPct > 30) {
         return { source: 'grid', reason: '🔋 Saving battery for evening peak hours (17:00-20:00) when solar will be unavailable' }
       }
-      // During evening peak, use battery
       if (isEveningPeak) {
         return { source: 'battery', reason: null }
       }
       return { source: 'battery', reason: null }
     }
-    
-    // Priority 3: Grid as fallback
+
     return { source: 'grid', reason: batteryPct <= 15 ? '🔋 Battery too low (<15%), using grid' : null }
   }, [])
 
-  // 3. AI Decision Loop
   const fetchAIDecision = useCallback(async () => {
     if (isAiThinking) return
 
@@ -218,7 +200,6 @@ export default function Home() {
     }
   }, [addLog, determineActiveSource, isAiThinking])
 
-  // --- EFFECTS ---
   useEffect(() => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -305,13 +286,12 @@ export default function Home() {
       await new Promise(r => setTimeout(r, 2000))
       setAiTrainingStatus(null)
     }
-    
+
     runTraining()
     const interval = setInterval(runTraining, AI_TRAINING_INTERVAL)
     return () => clearInterval(interval)
   }, [])
 
-  // --- HELPERS ---
   const generateForecastForDay = useCallback((dayOffset: number): ForecastPrediction[] => {
     const date = new Date()
     date.setDate(date.getDate() + dayOffset)
@@ -352,22 +332,19 @@ export default function Home() {
 
   useEffect(() => { handleForecastDayChange(0) }, [])
 
-  // SCROLL HANDLER
   const scrollToDashboard = () => {
     dashboardRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  // Style Helpers
   const getSourceColor = (s: string) => s === 'solar' ? 'text-green-400' : s === 'battery' ? 'text-yellow-400' : 'text-red-400'
   const getSourceBgColor = (s: string) => s === 'solar' ? 'bg-green-500/20 border-green-500/50' : s === 'battery' ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-red-500/20 border-red-500/50'
   const getSourceIcon = (s: string) => s === 'solar' ? <Sun className="w-6 h-6 text-green-400" /> : s === 'battery' ? <Battery className="w-6 h-6 text-yellow-400" /> : <Plug className="w-6 h-6 text-red-400" />
   const getDayName = (o: number) => o === 0 ? 'Today' : o === 1 ? 'Tomorrow' : new Date(Date.now() + o * 86400000).toLocaleDateString('en-US', { weekday: 'long' })
 
-  // --- RENDER ---
   return (
     <div className="min-h-screen bg-gray-900">
 
-      {/* 1. HERO SECTION (Full Height) */}
+      
       <HeroSection
           lightIntensity={sensorData.light}
           activeSource={activeSource}
@@ -376,7 +353,7 @@ export default function Home() {
         onScrollClick={scrollToDashboard}
       />
 
-      {/* 2. DASHBOARD CONTENT (Below Hero) */}
+      
       <div ref={dashboardRef} className="relative z-10 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 min-h-screen shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
         <header className="border-b border-gray-700/50 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
           <div className="container mx-auto px-6 py-4">
@@ -413,7 +390,7 @@ export default function Home() {
             <div className="flex items-center justify-center h-64"><div className="flex flex-col items-center gap-4"><div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" /><p className="text-gray-400">Connecting to AI Engine...</p></div></div>
           ) : (
             <>
-              {/* Current Source with Color Coding */}
+              
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
                 <div className={`rounded-xl border p-6 ${getSourceBgColor(activeSource)}`}>
                   <div className="flex items-center justify-between">
@@ -440,7 +417,7 @@ export default function Home() {
                 </div>
               </motion.div>
 
-              {/* Battery Bar */}
+              
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="mb-8">
                 <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4">
                   <div className="flex items-center justify-between mb-2">
@@ -454,7 +431,7 @@ export default function Home() {
                 </div>
               </motion.div>
 
-              {/* Weather */}
+              
               {weatherData && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mb-8">
                   <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
@@ -471,7 +448,7 @@ export default function Home() {
                 </motion.div>
               )}
 
-              {/* Peak Settings */}
+              
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="mb-8">
                 <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4">
                   <div className="flex items-center justify-between">
@@ -498,12 +475,12 @@ export default function Home() {
                 </div>
               </motion.div>
 
-              {/* Stats */}
+              
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mb-8">
                 <StatsGrid carbonSavings={stats.carbonSavings} costSavings={stats.costSavings} powerConsumption={stats.powerConsumption} efficiency={stats.efficiency} />
               </motion.div>
 
-              {/* Sensors with Solar Power */}
+              
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="mb-8">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2"><Database className="w-5 h-5 text-blue-400" />ESP32 Sensors<span className="text-xs text-gray-500 ml-2">Solar = V × I</span></h3>
                 <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
@@ -520,7 +497,7 @@ export default function Home() {
                 </div>
               </motion.div>
 
-              {/* Energy Flow + Distribution */}
+              
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <div className="h-[400px]"><EnergyFlow activeSource={activeSource} solarOutput={energyOutputs.solar} batteryOutput={energyOutputs.battery} gridOutput={energyOutputs.grid} homeConsumption={energyOutputs.home} /></div>
                 <div>
@@ -536,7 +513,7 @@ export default function Home() {
                 </div>
               </motion.div>
 
-              {/* 7-Day Forecast */}
+              
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="mb-8">
                 <div className="bg-gray-900/50 rounded-lg p-6 border border-gray-700/50">
                   <div className="flex items-center justify-between mb-4">

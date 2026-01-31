@@ -1,8 +1,3 @@
-"""
-Vesta Decision Engine - Real-time Energy Management
-Combines demand forecasting and source optimization for intelligent energy decisions
-Supports model retraining on new data
-"""
 
 import os
 import numpy as np
@@ -11,40 +6,24 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Tuple
 import json
 
-# Import our models
 import sys
 sys.path.append(os.path.dirname(__file__))
 from train_demand_model import EnergyDemandForecaster
 from optimize_sources import SourceOptimizer, EnergySource
 
-
 class LoadType:
-    """Classification of appliance loads"""
-    CRITICAL = "critical"  # Cannot be deferred (lights, router, refrigerator)
-    DEFERRABLE = "deferrable"  # Can be deferred (washing machine, EV charger, AC)
-
+    CRITICAL = "critical"
+    DEFERRABLE = "deferrable"
 
 class LoadManager:
-    """
-    Manages load shedding and demand response
-    Classifies loads and makes deferral decisions based on carbon intensity
-    """
-    
-    # Configuration constants
-    DEFAULT_CARBON_THRESHOLD = 700  # gCO2eq/kWh
-    CLEAN_CARBON_BASELINE = 400  # gCO2eq/kWh - baseline for clean energy
-    NORMAL_GRID_PRICE = 5.0  # ₹/kWh - baseline grid price
-    
+
+    DEFAULT_CARBON_THRESHOLD = 700
+    CLEAN_CARBON_BASELINE = 400
+    NORMAL_GRID_PRICE = 5.0
+
     def __init__(self, carbon_threshold: float = DEFAULT_CARBON_THRESHOLD):
-        """
-        Initialize load manager
-        
-        Args:
-            carbon_threshold: Carbon intensity threshold (gCO2eq/kWh) above which to defer loads
-        """
         self.carbon_threshold = carbon_threshold
-        
-        # Define load classifications with typical power consumption
+
         self.loads = {
             'lights': {'type': LoadType.CRITICAL, 'power_kw': 0.2},
             'router': {'type': LoadType.CRITICAL, 'power_kw': 0.05},
@@ -54,33 +33,20 @@ class LoadManager:
             'air_conditioner': {'type': LoadType.DEFERRABLE, 'power_kw': 2.0},
             'dishwasher': {'type': LoadType.DEFERRABLE, 'power_kw': 1.2}
         }
-    
+
     def should_defer_load(self, load_name: str, carbon_intensity: float, grid_price: float) -> Dict:
-        """
-        Determine if a load should be deferred
-        
-        Args:
-            load_name: Name of the appliance/load
-            carbon_intensity: Current grid carbon intensity (gCO2eq/kWh)
-            grid_price: Current grid price (₹/kWh)
-            
-        Returns:
-            Dictionary with decision and reasoning
-        """
         if load_name not in self.loads:
             return {'defer': False, 'reason': 'Unknown load'}
-        
+
         load = self.loads[load_name]
-        
-        # Critical loads are never deferred
+
         if load['type'] == LoadType.CRITICAL:
             return {
                 'defer': False,
                 'reason': 'Critical load - cannot defer',
                 'load_type': LoadType.CRITICAL
             }
-        
-        # Deferrable loads: check carbon intensity
+
         if carbon_intensity > self.carbon_threshold:
             return {
                 'defer': True,
@@ -88,8 +54,7 @@ class LoadManager:
                 'load_type': LoadType.DEFERRABLE,
                 'carbon_savings': load['power_kw'] * (carbon_intensity - self.CLEAN_CARBON_BASELINE)
             }
-        
-        # Also defer if grid price is very high
+
         if grid_price > 8.0:
             return {
                 'defer': True,
@@ -97,37 +62,27 @@ class LoadManager:
                 'load_type': LoadType.DEFERRABLE,
                 'cost_savings': load['power_kw'] * (grid_price - self.NORMAL_GRID_PRICE)
             }
-        
+
         return {
             'defer': False,
             'reason': 'Good conditions - proceed with load',
             'load_type': LoadType.DEFERRABLE
         }
-    
+
     def get_load_shedding_recommendation(self, carbon_intensity: float, grid_price: float) -> Dict:
-        """
-        Get recommendations for all deferrable loads
-        
-        Args:
-            carbon_intensity: Current grid carbon intensity
-            grid_price: Current grid price
-            
-        Returns:
-            Dictionary with recommendations for each load
-        """
         recommendations = {}
         total_deferred_power = 0
         total_carbon_saved = 0
-        
+
         for load_name in self.loads:
             decision = self.should_defer_load(load_name, carbon_intensity, grid_price)
             recommendations[load_name] = decision
-            
+
             if decision['defer']:
                 total_deferred_power += self.loads[load_name]['power_kw']
                 if 'carbon_savings' in decision:
                     total_carbon_saved += decision['carbon_savings']
-        
+
         return {
             'recommendations': recommendations,
             'total_deferred_power_kw': total_deferred_power,
@@ -135,15 +90,9 @@ class LoadManager:
             'summary': f"Defer {total_deferred_power:.1f} kW to save {total_carbon_saved:.0f}g CO2" if total_deferred_power > 0 else "All loads can proceed"
         }
 
-
 class VestaDecisionEngine:
-    """
-    The Brain of Vesta Energy Orchestrator
-    Coordinates demand forecasting and source optimization
-    """
-    
+
     def __init__(self):
-        """Initialize the decision engine"""
         self.forecaster = EnergyDemandForecaster(lookback_hours=24, forecast_horizon=6)
         self.optimizer = SourceOptimizer(
             carbon_weight=0.5,
@@ -154,9 +103,8 @@ class VestaDecisionEngine:
         )
         self.load_manager = LoadManager(carbon_threshold=700)
         self.decision_log = []
-        
+
     def load_models(self) -> bool:
-        """Load pre-trained models"""
         print("Loading pre-trained models...")
         success = self.forecaster.load_model()
         if success:
@@ -164,115 +112,87 @@ class VestaDecisionEngine:
         else:
             print("✗ No pre-trained forecasting model found")
         return success
-    
+
     def train_models(self, data_path: str = 'data/raw/integrated_dataset.csv'):
-        """Train both models from scratch"""
         print("=" * 70)
         print("VESTA DECISION ENGINE - MODEL TRAINING")
         print("=" * 70)
-        
-        # Load data
+
         df = pd.read_csv(data_path)
         df['timestamp'] = pd.to_datetime(df['timestamp'])
-        
+
         print(f"\nDataset: {len(df)} records")
         print(f"Date range: {df['timestamp'].min()} to {df['timestamp'].max()}")
-        
-        # Train forecasting model
+
         print("\n" + "-" * 70)
         print("PHASE 1: Training Demand Forecasting Model")
         print("-" * 70)
         self.forecaster.train(df, epochs=50, batch_size=32)
-        
-        # Optimizer doesn't need training (rule-based)
+
         print("\n" + "-" * 70)
         print("PHASE 2: Source Optimization Algorithm")
         print("-" * 70)
         print("✓ Optimization algorithm initialized (rule-based, no training needed)")
-        
+
         print("\n" + "=" * 70)
         print("✓ ALL MODELS READY!")
         print("=" * 70)
-    
+
     def retrain_on_new_data(self, new_data_path: str):
-        """
-        Retrain models on newly collected data
-        This allows the system to adapt to changing patterns
-        """
         print("=" * 70)
         print("RETRAINING MODELS ON NEW DATA")
         print("=" * 70)
-        
-        # Retrain forecaster
+
         print("\nRetraining demand forecasting model...")
         self.forecaster.retrain(new_data_path, epochs=20)
-        
+
         print("\n✓ Models updated with new data!")
-    
+
     def make_decision(self, recent_data: pd.DataFrame, current_conditions: Dict) -> Dict:
-        """
-        Make real-time energy management decision
-        
-        Args:
-            recent_data: Last 24 hours of data for forecasting
-            current_conditions: Current conditions for optimization
-            
-        Returns:
-            Decision dictionary with forecast, allocation, and metrics
-        """
-        # Step 1: Forecast demand for next 6 hours
         forecast = self.forecaster.predict(recent_data)
-        
-        # Step 2: For the next hour, optimize source selection
-        current_power_needed = forecast[0]  # Next hour's predicted demand
-        
-        # Step 3: Check for Grid Arbitrage opportunity
+
+        current_power_needed = forecast[0]
+
         grid_price = current_conditions.get('grid_price', 6.0)
         battery_level = self.optimizer.battery_current_charge
         battery_pct = (battery_level / self.optimizer.battery_capacity) * 100
-        
-        # Grid Arbitrage thresholds
-        high_price_threshold = 8.0  # ₹/kWh - sell to grid
-        low_price_threshold = 4.0   # ₹/kWh - buy from grid to charge battery
-        
+
+        high_price_threshold = 8.0
+        low_price_threshold = 4.0
+
         grid_action = None
         grid_revenue = 0.0
-        
-        # Sell to grid if price is high and battery is well charged
+
         if grid_price > high_price_threshold and battery_pct > 80:
-            # Calculate how much we can sell
             sellable_power = min(
                 self.optimizer.battery_max_discharge,
-                battery_level - (self.optimizer.battery_capacity * 0.5)  # Keep at least 50%
+                battery_level - (self.optimizer.battery_capacity * 0.5)
             )
             if sellable_power > 0:
                 grid_action = "DISCHARGE_TO_GRID"
                 grid_revenue = sellable_power * grid_price
                 self.optimizer.battery_current_charge -= sellable_power
-        
-        # Buy from grid to charge battery if price is very low
+
         elif grid_price < low_price_threshold and battery_pct < 60:
             charge_amount = min(
-                2.0,  # Max 2 kW charge rate
+                2.0,
                 self.optimizer.battery_capacity - battery_level
             )
             if charge_amount > 0:
                 grid_action = "CHARGE_FROM_GRID"
-                grid_revenue = -charge_amount * grid_price  # Negative = cost
+                grid_revenue = -charge_amount * grid_price
                 self.optimizer.battery_current_charge += charge_amount
-        
+
         allocation, metrics = self.optimizer.optimize_source(
             current_power_needed,
             current_conditions
         )
-        
-        # Step 4: Get load shedding recommendations
+
         load_recommendations = self.load_manager.get_load_shedding_recommendation(
             current_conditions.get('carbon_intensity', 500),
             grid_price
         )
-        
-        # Prepare decision
+
         decision = {
             'timestamp': datetime.now().isoformat(),
             'forecast_6h': forecast.tolist(),
@@ -288,77 +208,58 @@ class VestaDecisionEngine:
             'load_shedding': load_recommendations,
             'recommendation': self._generate_recommendation(forecast, allocation, metrics, grid_action, grid_revenue, load_recommendations)
         }
-        
-        # Log decision
+
         self.decision_log.append(decision)
-        
+
         return decision
-    
-    def _generate_recommendation(self, forecast: np.ndarray, 
+
+    def _generate_recommendation(self, forecast: np.ndarray,
                                  allocation: List[Tuple[EnergySource, float]],
                                  metrics: Dict,
                                  grid_action: str = None,
                                  grid_revenue: float = 0.0,
                                  load_recommendations: Dict = None) -> str:
-        """Generate human-readable recommendation"""
         sources = [s.value for s, _ in allocation]
-        
-        # Build recommendation text
+
         rec = []
-        
-        # Grid Arbitrage actions
+
         if grid_action == "DISCHARGE_TO_GRID":
             rec.append(f"💰 SELLING to grid! Revenue: ₹{grid_revenue:.2f}")
         elif grid_action == "CHARGE_FROM_GRID":
             rec.append(f"🔌 BUYING from grid (low price). Cost: ₹{abs(grid_revenue):.2f}")
-        
-        # Load shedding recommendations
+
         if load_recommendations and load_recommendations['total_deferred_power_kw'] > 0:
             rec.append(f"⚡ Load Shedding: {load_recommendations['summary']}")
-        
+
         if EnergySource.SOLAR in [s for s, _ in allocation]:
             rec.append("Using solar power (cleanest option)")
         if EnergySource.BATTERY in [s for s, _ in allocation]:
             rec.append("Drawing from battery (cost-effective)")
         if EnergySource.GRID in [s for s, _ in allocation]:
             rec.append("Supplementing with grid power")
-        
-        # Check if demand will increase
+
         avg_demand = forecast.mean()
         if forecast[1] > forecast[0] * 1.2:
             rec.append("⚠ Demand will increase significantly in next hour")
-        
-        # Check battery status
+
         battery_pct = (metrics['battery_charge'] / self.optimizer.battery_capacity) * 100
         if battery_pct < 20:
             rec.append("⚠ Battery low - consider charging during low-cost hours")
         elif battery_pct > 80:
             rec.append("✓ Battery well charged")
-        
+
         return " | ".join(rec)
-    
+
     def simulate_realtime(self, df: pd.DataFrame, hours: int = 24) -> pd.DataFrame:
-        """
-        Simulate real-time operation for given hours
-        
-        Args:
-            df: Dataset with all necessary features
-            hours: Number of hours to simulate
-            
-        Returns:
-            DataFrame with decisions for each hour
-        """
         print("=" * 70)
         print(f"SIMULATING REAL-TIME OPERATION ({hours} hours)")
         print("=" * 70)
-        
+
         decisions = []
-        
+
         for i in range(24, min(24 + hours, len(df))):
-            # Get recent data for forecasting (24 hours lookback)
             recent_data = df.iloc[i-24:i].copy()
-            
-            # Current conditions
+
             current = df.iloc[i]
             conditions = {
                 'shortwave_radiation': current.get('shortwave_radiation', current.get('solar_radiation_proxy', 0) * 800),
@@ -367,22 +268,19 @@ class VestaDecisionEngine:
                 'carbon_intensity': current['carbon_intensity'],
                 'grid_price': current['grid_price_per_kwh']
             }
-            
-            # Make decision
+
             decision = self.make_decision(recent_data, conditions)
-            
-            # Add actual values for comparison
+
             decision['actual_demand'] = float(current['total_energy_kwh'])
             decision['timestamp_hour'] = current['timestamp']
-            
+
             decisions.append(decision)
-            
+
             if (i - 24) % 6 == 0:
                 print(f"  Processed hour {i-24}/{hours}")
-        
+
         print("\n✓ Simulation complete!")
-        
-        # Convert to DataFrame for analysis
+
         results = []
         for d in decisions:
             results.append({
@@ -395,70 +293,59 @@ class VestaDecisionEngine:
                 'battery_charge': d['current_hour']['battery_charge'],
                 'recommendation': d['recommendation']
             })
-        
+
         return pd.DataFrame(results)
-    
+
     def save_decision_log(self, path: str = 'data/decision_log.json'):
-        """Save decision log to file"""
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'w') as f:
             json.dump(self.decision_log, f, indent=2)
         print(f"✓ Decision log saved to: {path}")
 
-
 def main():
-    """
-    Main function demonstrating the decision engine
-    """
-    # Initialize engine
     engine = VestaDecisionEngine()
-    
-    # Try to load existing models
+
     if not engine.load_models():
         print("\nNo pre-trained models found. Training new models...")
         engine.train_models()
-    
-    # Load data for simulation
+
     data_path = 'data/raw/integrated_dataset.csv'
     df = pd.read_csv(data_path)
     df['timestamp'] = pd.to_datetime(df['timestamp'])
-    
-    # Simulate 48 hours of real-time operation
+
     print("\n" + "=" * 70)
     print("REAL-TIME SIMULATION")
     print("=" * 70)
-    
+
     results = engine.simulate_realtime(df, hours=48)
-    
-    # Analyze results
+
     print("\n" + "=" * 70)
     print("SIMULATION RESULTS")
     print("=" * 70)
-    
+
     print(f"\nForecast Accuracy:")
     mae = np.abs(results['predicted_demand'] - results['actual_demand']).mean()
     mape = (np.abs(results['predicted_demand'] - results['actual_demand']) / results['actual_demand']).mean() * 100
     print(f"  Mean Absolute Error: {mae:.3f} kWh")
     print(f"  Mean Absolute % Error: {mape:.1f}%")
-    
+
     print(f"\nCost & Carbon:")
     print(f"  Total Cost: ₹{results['cost'].sum():.2f}")
     print(f"  Total Carbon: {results['carbon'].sum()/1000:.2f} kg CO2")
     print(f"  Average Cost per hour: ₹{results['cost'].mean():.2f}")
-    
+
     print(f"\nBattery Usage:")
     print(f"  Initial charge: {results['battery_charge'].iloc[0]:.2f} kWh")
     print(f"  Final charge: {results['battery_charge'].iloc[-1]:.2f} kWh")
     print(f"  Min charge: {results['battery_charge'].min():.2f} kWh")
     print(f"  Max charge: {results['battery_charge'].max():.2f} kWh")
-    
-    # Save results
+
     output_path = 'data/simulation_results.csv'
     results.to_csv(output_path, index=False)
     print(f"\n✓ Simulation results saved to: {output_path}")
-    
+
     engine.save_decision_log()
-    
+
     print("\n" + "=" * 70)
     print("✓ VESTA DECISION ENGINE READY FOR DEPLOYMENT!")
     print("=" * 70)
@@ -467,8 +354,7 @@ def main():
     print("  2. Optimize source selection (Grid/Solar/Battery)")
     print("  3. Minimize both cost and carbon footprint")
     print("  4. Adapt to new data through retraining")
-    
-    # Demo: Show how to retrain on new data
+
     print("\n" + "-" * 70)
     print("RETRAINING CAPABILITY")
     print("-" * 70)
@@ -481,7 +367,6 @@ def main():
     print("  - New usage patterns")
     print("  - Updated appliances")
     print("  - Grid conditions")
-
 
 if __name__ == "__main__":
     main()

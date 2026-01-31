@@ -1,10 +1,3 @@
-"""
-Django management command to run the MQTT listener.
-This is the core of the data ingestion pipeline.
-
-Usage:
-    python manage.py mqtt_listener
-"""
 import json
 import logging
 from datetime import datetime, time
@@ -19,7 +12,6 @@ from data_pipeline.models import SensorReading
 from data_pipeline.services.cache_manager import SensorBufferManager
 
 logger = logging.getLogger(__name__)
-
 
 class Command(BaseCommand):
     help = 'Runs the MQTT listener to receive sensor data from Raspberry Pi'
@@ -39,21 +31,17 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        """Main entry point for the command."""
         self.stdout.write(self.style.SUCCESS('Starting MQTT Listener...'))
 
-        # Set up MQTT client
         self.mqtt_client = mqtt.Client(
             client_id=settings.MQTT_CLIENT_ID,
             protocol=mqtt.MQTTv5
         )
 
-        # Set callbacks
         self.mqtt_client.on_connect = self.on_connect
         self.mqtt_client.on_message = self.on_message
         self.mqtt_client.on_disconnect = self.on_disconnect
 
-        # Set authentication if provided
         if settings.MQTT_USERNAME:
             self.mqtt_client.username_pw_set(
                 settings.MQTT_USERNAME,
@@ -61,7 +49,6 @@ class Command(BaseCommand):
             )
 
         try:
-            # Connect to broker
             self.stdout.write(
                 f'Connecting to MQTT broker at {settings.MQTT_BROKER_HOST}:{settings.MQTT_BROKER_PORT}'
             )
@@ -71,7 +58,6 @@ class Command(BaseCommand):
                 keepalive=60
             )
 
-            # Start the network loop
             self.mqtt_client.loop_forever()
 
         except KeyboardInterrupt:
@@ -83,16 +69,13 @@ class Command(BaseCommand):
             raise
 
     def on_connect(self, client, userdata, flags, rc, properties=None):
-        """Callback when connected to MQTT broker."""
         if rc == 0:
             self.stdout.write(self.style.SUCCESS('Connected to MQTT broker'))
 
-            # Subscribe to topics
             topic_pattern = f"solar/data"
             client.subscribe(topic_pattern)
             self.stdout.write(self.style.SUCCESS(f'Subscribed to: {topic_pattern}'))
 
-            # Also subscribe to commands response topic
             commands_topic = f"{settings.MQTT_TOPIC_PREFIX}/commands/response"
             client.subscribe(commands_topic)
 
@@ -101,40 +84,23 @@ class Command(BaseCommand):
             logger.error(f'MQTT connection failed: {rc}')
 
     def on_disconnect(self, client, userdata, rc, properties=None):
-        """Callback when disconnected from MQTT broker."""
         if rc != 0:
             self.stdout.write(self.style.WARNING(f'Unexpected disconnection (rc={rc})'))
             logger.warning(f'MQTT disconnected: {rc}')
 
     def on_message(self, client, userdata, msg):
-        """
-        Callback when a message is received.
-
-        Expected message format (JSON):
-        {
-            "sensor_type": "ldr",
-            "sensor_id": "ldr_1",
-            "value": 750,
-            "unit": "lux",
-            "location": "living_room",
-            "timestamp": "2026-01-26T08:00:00Z"
-        }
-        """
         try:
-            # Parse the message
             payload = json.loads(msg.payload.decode('utf-8'))
 
             self.stdout.write(
                 self.style.SUCCESS(f'Received on {msg.topic}: {payload}')
             )
 
-            # Validate required fields
             required_fields = ['sensor_type', 'sensor_id', 'value','unit','location','timestamp']
             if not all(field in payload for field in required_fields):
                 logger.warning(f'Invalid message format: {payload}')
                 return
 
-            # Extract data
             sensor_type = payload.get('sensor_type')
             sensor_id = payload.get('sensor_id')
             value = float(payload.get('value'))
@@ -142,20 +108,16 @@ class Command(BaseCommand):
             location = payload.get('location', '')
             timestamp = payload.get('timestamp')
 
-            # Parse timestamp with fallback for time-only format
             if timestamp:
                 try:
-                    # Try parsing as full ISO datetime
                     timestamp = timezone.datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
                 except ValueError:
-                    # If it's just time (HH:MM:SS), add today's date
                     try:
                         time_obj = datetime.strptime(timestamp, '%H:%M:%S').time()
                         timestamp = timezone.make_aware(
                             datetime.combine(timezone.now().date(), time_obj)
                         )
                     except ValueError:
-                        # Fallback to current time
                         self.stdout.write(
                             self.style.WARNING(f'Invalid timestamp format: {timestamp}, using current time')
                         )
@@ -163,7 +125,6 @@ class Command(BaseCommand):
             else:
                 timestamp = timezone.now()
 
-            # Save to database (Cold Path)
             sensor_reading = SensorReading.objects.create(
                 sensor_type=sensor_type,
                 sensor_id=sensor_id,
@@ -173,7 +134,6 @@ class Command(BaseCommand):
                 timestamp=timestamp
             )
 
-            # Add to in-memory buffer (Hot Path)
             self.buffer_manager.add_reading(
                 sensor_type=sensor_type,
                 sensor_id=sensor_id,
@@ -181,7 +141,6 @@ class Command(BaseCommand):
                 timestamp=timestamp.isoformat()
             )
 
-            # Broadcast to WebSocket clients
             self.broadcast_sensor_data(sensor_reading)
 
             self.stdout.write(
@@ -197,9 +156,6 @@ class Command(BaseCommand):
             logger.error(f'Error processing message: {e}')
 
     def broadcast_sensor_data(self, sensor_reading):
-        """
-        Broadcast sensor data to WebSocket clients via Django Channels.
-        """
         try:
             message = {
                 'type': 'sensor_update',

@@ -24,14 +24,12 @@ interface HeroSectionProps {
   onScrollClick: () => void
 }
 
-// Map active source to its associated color for the radial background
 const sourceColors: Record<'solar' | 'battery' | 'grid', string> = {
-  solar: '#4ade80',    // Green for solar
-  battery: '#facc15',  // Yellow for battery
-  grid: '#f87171',     // Red for grid
+  solar: '#4ade80',
+  battery: '#facc15',
+  grid: '#f87171',
 }
 
-// Map active source to labels and icons
 const sourceLabels: Record<'solar' | 'battery' | 'grid', string> = {
   solar: 'Solar',
   battery: 'Battery',
@@ -54,9 +52,8 @@ export default function HeroSection({
   const activeColor = sourceColors[activeSource]
 
   return (
-    // CHANGE 1: Use h-[100dvh] instead of h-screen to account for mobile browser bars
     <section className="relative w-full h-dvh">
-      {/* Radial background glow based on active energy source */}
+      
       <div
         className="absolute inset-0 pointer-events-none transition-all duration-1000"
         style={{
@@ -64,7 +61,7 @@ export default function HeroSection({
         }}
       />
 
-      {/* Full viewport 3D model */}
+      
       <div className="absolute inset-0 w-full h-full">
         <DigitalTwin
           lightIntensity={lightIntensity}
@@ -75,9 +72,9 @@ export default function HeroSection({
         />
       </div>
 
-      {/* Overlay with branding */}
+      
       <div className="absolute inset-0 pointer-events-none">
-        {/* Active energy source indicator badge */}
+        
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -103,18 +100,14 @@ export default function HeroSection({
           </div>
         </motion.div>
 
-        {/* CHANGE 2:
-            - Reduced base padding to p-4 for smaller screens
-            - Added pb-20 (padding-bottom) specifically to lift the bottom button up away from the address bar/home indicator
-            - Kept md:p-8 for desktop layouts
-        */}
+        
         <div className="container mx-auto h-full flex flex-col justify-between p-4 pb-20 md:p-8">
-          {/* Top branding */}
+          
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5, duration: 0.8 }}
-            className="text-center mt-8 md:mt-0" // Added margin-top for mobile safe area
+            className="text-center mt-8 md:mt-0"
           >
             <h1 className="text-5xl md:text-7xl font-bold text-white mb-4 drop-shadow-2xl">
               HyperVolt
@@ -124,7 +117,7 @@ export default function HeroSection({
             </p>
           </motion.div>
 
-          {/* Scroll indicator */}
+          
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -155,7 +148,7 @@ export default function HeroSection({
         </div>
       </div>
 
-      {/* Gradient overlay for better text visibility */}
+      
       <div className="absolute inset-0 bg-linear-to-b from-black/30 via-transparent to-black/30 pointer-events-none" />
     </section>
   )

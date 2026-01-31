@@ -15,7 +15,6 @@ interface EfficiencyChartProps {
 }
 
 export default function EfficiencyChart({ data, className }: EfficiencyChartProps) {
-  // Format data for chart
   const chartData = data.map(item => ({
     time: new Date(item.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
     efficiency: item.efficiency,
@@ -35,7 +34,6 @@ export default function EfficiencyChart({ data, className }: EfficiencyChartProp
     return null
   }
 
-  // Calculate stats
   const avgEfficiency = chartData.length > 0
     ? chartData.reduce((sum, d) => sum + d.efficiency, 0) / chartData.length
     : 0
@@ -77,12 +75,12 @@ export default function EfficiencyChart({ data, className }: EfficiencyChartProp
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-            <XAxis 
-              dataKey="time" 
+            <XAxis
+              dataKey="time"
               stroke="#9CA3AF"
               style={{ fontSize: '12px' }}
             />
-            <YAxis 
+            <YAxis
               stroke="#9CA3AF"
               style={{ fontSize: '12px' }}
               domain={[0, 100]}
@@ -104,14 +102,14 @@ export default function EfficiencyChart({ data, className }: EfficiencyChartProp
         </div>
       )}
 
-      {/* Performance indicator */}
+      
       <div className="mt-4 pt-4 border-t border-gray-700/50">
         <div className="flex items-center justify-between text-xs">
           <span className="text-gray-400">Performance</span>
           <div className="flex items-center gap-2">
             <div className="flex gap-1">
               {[...Array(5)].map((_, i) => (
-                <div 
+                <div
                   key={i}
                   className={cn(
                     "w-2 h-4 rounded-sm",

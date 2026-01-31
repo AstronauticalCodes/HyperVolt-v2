@@ -55,7 +55,7 @@ export function StatCard({ title, value, unit, change, icon, color, className }:
         className
       )}
     >
-      {/* Background decoration */}
+      
       <div className="absolute top-0 right-0 w-32 h-32 opacity-5">
         {icon}
       </div>

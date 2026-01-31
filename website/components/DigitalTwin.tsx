@@ -7,7 +7,6 @@ import * as THREE from 'three'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Loader2, AlertCircle, Home as HomeIcon } from 'lucide-react'
 
-// --- Types ---
 interface DigitalTwinProps {
   lightIntensity: number
   activeSource: 'solar' | 'battery' | 'grid'
@@ -19,7 +18,6 @@ interface DigitalTwinProps {
 
 type ModelLoadState = 'loading' | 'success' | 'error'
 
-// --- 1. The Geometric Fallback House (No external files needed) ---
 function GeometricHouse({
   lightIntensity,
   brightnessThreshold,
@@ -35,22 +33,22 @@ function GeometricHouse({
 
   return (
     <group ref={groupRef} position={[0, -1, 0]}>
-      {/* Base */}
+      
       <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
         <boxGeometry args={[4, 2, 4]} />
         <meshStandardMaterial color="#2D3748" />
       </mesh>
-      {/* Roof */}
+      
       <mesh position={[0, 2.0, 0]} castShadow>
         <coneGeometry args={[3.5, 1.5, 4]} />
         <meshStandardMaterial color="#1F2937"/>
       </mesh>
-      {/* Door */}
+      
       <mesh position={[0, 0.5, 2.01]}>
         <boxGeometry args={[0.8, 1.2, 0.1]} />
         <meshStandardMaterial color="#8B4513" />
       </mesh>
-      {/* Windows */}
+      
       <mesh position={[-1.2, 0.8, 2.01]}>
         <planeGeometry args={[0.8, 0.8]} />
         <meshStandardMaterial color={needsArtificialLight ? "#F6E05E" : "#4A5568"} emissive={needsArtificialLight ? "#F6E05E" : "#000000"} />
@@ -60,7 +58,7 @@ function GeometricHouse({
         <meshStandardMaterial color={needsArtificialLight ? "#F6E05E" : "#4A5568"} emissive={needsArtificialLight ? "#F6E05E" : "#000000"} />
       </mesh>
 
-      {/* Internal Light Logic */}
+      
       {needsArtificialLight && (
         <pointLight
           position={[0, 1.5, 0]}
@@ -74,7 +72,6 @@ function GeometricHouse({
   )
 }
 
-// --- 2. The Real GLTF Model ---
 function GLTFModel({
   onLoad,
   lightIntensity,
@@ -86,22 +83,19 @@ function GLTFModel({
 }) {
   const gltf = useGLTF('/models/isometric_room_school.glb')
 
-  // Calculate how "dark" it is. 0 = bright, 1 = total darkness
   const darknessFactor = Math.max(0, Math.min(1, (brightnessThreshold - lightIntensity) / brightnessThreshold))
 
   useEffect(() => {
     onLoad()
 
-    // Traverse the model to find specific materials to "light up"
     gltf.scene.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh
         const material = mesh.material as THREE.MeshStandardMaterial
 
-        // Logic: If LDR is low, make "Windows" or "Glass" emissive (glow)
         if (mesh.name.toLowerCase().includes('window') || mesh.name.toLowerCase().includes('glass')) {
-          material.emissive = new THREE.Color("#F6E05E") // Warm yellow glow
-          material.emissiveIntensity = darknessFactor * 2 // Glow intensifies as room gets darker
+          material.emissive = new THREE.Color("#F6E05E")
+          material.emissiveIntensity = darknessFactor * 2
         }
       }
     })
@@ -116,7 +110,6 @@ function GLTFModel({
   )
 }
 
-// --- 3. Error Boundary to catch GLTF failures ---
 class ModelErrorBoundary extends React.Component<
   { fallback: React.ReactNode; onError: () => void; children: React.ReactNode },
   { hasError: boolean }
@@ -143,7 +136,6 @@ class ModelErrorBoundary extends React.Component<
   }
 }
 
-// --- 4. Main Scene Component ---
 function Scene({
   lightIntensity,
   brightnessThreshold,
@@ -158,18 +150,13 @@ function Scene({
     ? ((brightnessThreshold - lightIntensity) / 100) * 5
     : 0
 
-  // --- UPDATED: Lighting Logic ---
-  // Increased base from 0.1 to 0.5 (Brighter Night)
-  // Increased multiplier from 1.5 to 3.0 (Brighter Day)
   const dynamicAmbient = Math.max(0.5, (lightIntensity / 100) * 3.0)
 
-  // --- NEW: IST Sun Position Logic ---
   const [sunPosition, setSunPosition] = useState<[number, number, number]>([10, 10, 5])
 
   useEffect(() => {
     const updateSunPosition = () => {
       const now = new Date();
-      // Calculate IST time (UTC + 5.5 hours)
       const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
       const istDate = new Date(utc + (3600000 * 5.5));
 
@@ -177,20 +164,16 @@ function Scene({
       const minutes = istDate.getMinutes();
       const timeDecimal = hours + minutes / 60;
 
-      // Sun Logic: Rises at 6:00 (0), Sets at 18:00 (PI)
-      // Radius of 20 units
-      let x = 10, y = 10, z = 5; // Defaults
+      let x = 10, y = 10, z = 5;
 
       if (timeDecimal >= 6 && timeDecimal <= 18) {
-        // Day time: Move sun in an arc
-        const dayProgress = (timeDecimal - 6) / 12; // 0.0 to 1.0
-        const angle = dayProgress * Math.PI; // 0 to PI
+        const dayProgress = (timeDecimal - 6) / 12;
+        const angle = dayProgress * Math.PI;
 
-        x = Math.cos(angle) * 20 * -1; // East to West
-        y = Math.sin(angle) * 20;      // Height
+        x = Math.cos(angle) * 20 * -1;
+        y = Math.sin(angle) * 20;
         z = 10;
       } else {
-        // Night time: Moon/Sun is "down" or set to a static night position
         x = -10;
         y = -5;
         z = -10;
@@ -200,7 +183,7 @@ function Scene({
     };
 
     updateSunPosition();
-    const interval = setInterval(updateSunPosition, 60000); // Update every minute
+    const interval = setInterval(updateSunPosition, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -209,7 +192,7 @@ function Scene({
       <ambientLight intensity={dynamicAmbient} />
       <directionalLight
         position={sunPosition}
-        intensity={lightIntensity > brightnessThreshold ? 1.5 : 0.3} // Boosted direct sunlight intensity
+        intensity={lightIntensity > brightnessThreshold ? 1.5 : 0.3}
         castShadow
         shadow-mapSize={[1024, 1024]}
       />
@@ -248,7 +231,6 @@ function Scene({
   )
 }
 
-// Helper for Environment (Sky/City reflection)
 function Environment() {
   return (
     <mesh scale={100}>
@@ -258,7 +240,6 @@ function Environment() {
   )
 }
 
-// --- 5. Exported Component ---
 export default function DigitalTwin({
   lightIntensity,
   activeSource,
@@ -271,7 +252,6 @@ export default function DigitalTwin({
   const [showContent, setShowContent] = useState(false)
 
   const handleLoadStateChange = (state: ModelLoadState) => {
-    // Only update if state changes to prevent loops
     if (modelState !== state) {
       setModelState(state)
       setTimeout(() => {
@@ -284,7 +264,7 @@ export default function DigitalTwin({
   return (
     <div className={className} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
 
-      {/* Loading / Error Overlay */}
+      
       <AnimatePresence>
         {!showContent && (
           <motion.div
@@ -303,7 +283,7 @@ export default function DigitalTwin({
         )}
       </AnimatePresence>
 
-      {/* Status Badge (Shows if using Fallback) */}
+      
       {showContent && modelState === 'error' && (
         <div className="absolute top-4 left-4 z-10 bg-yellow-500/20 backdrop-blur-md border border-yellow-500/30 px-3 py-1.5 rounded-full flex items-center gap-2">
           <AlertCircle className="w-4 h-4 text-yellow-500" />
@@ -311,7 +291,7 @@ export default function DigitalTwin({
         </div>
       )}
 
-      {/* 3D Canvas */}
+      
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: showContent ? 1 : 0 }}

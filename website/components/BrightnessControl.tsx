@@ -31,7 +31,7 @@ export default function BrightnessControl({ value, onChange, className }: Bright
       </div>
 
       <div className="space-y-6">
-        {/* Slider */}
+        
         <div className="relative">
           <div className="flex items-center gap-4">
             <Moon className="w-5 h-5 text-gray-500" />
@@ -51,8 +51,8 @@ export default function BrightnessControl({ value, onChange, className }: Bright
                   background: `linear-gradient(to right, #FDB022 0%, #FDB022 ${value}%, #374151 ${value}%, #374151 100%)`,
                 }}
               />
+
               
-              {/* Value indicator */}
               <motion.div
                 className="absolute top-0 transform -translate-y-10"
                 style={{
@@ -72,7 +72,7 @@ export default function BrightnessControl({ value, onChange, className }: Bright
           </div>
         </div>
 
-        {/* Visual representation */}
+        
         <div className="relative h-32 bg-gradient-to-t from-gray-800 to-gray-700 rounded-lg overflow-hidden">
           <motion.div
             className="absolute inset-0 bg-gradient-to-t from-yellow-500/50 to-yellow-300/30"
@@ -94,7 +94,7 @@ export default function BrightnessControl({ value, onChange, className }: Bright
           </div>
         </div>
 
-        {/* Description */}
+        
         <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
           <p className="text-xs text-gray-400">
             {value < 30 && "Low brightness - Energy saving mode"}
@@ -103,7 +103,7 @@ export default function BrightnessControl({ value, onChange, className }: Bright
           </p>
         </div>
 
-        {/* Stats */}
+        
         <div className="grid grid-cols-2 gap-4 text-center">
           <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
             <div className="text-xs text-gray-400 mb-1">Current LDR</div>
