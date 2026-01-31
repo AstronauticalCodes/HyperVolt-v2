@@ -127,7 +127,7 @@ export default function EnergyFlow({
             </div>
             <div className="mt-2 text-center bg-gray-900/90 backdrop-blur px-3 py-1 rounded-lg border border-gray-700 shadow-xl">
               <p className="text-xs text-gray-400">Total Load</p>
-              <p className="text-xl font-bold text-white">{homeConsumption.toFixed(2)} kW</p>
+              <p className="text-xl font-bold text-white">{homeConsumption.toFixed(2)} W</p>
             </div>
           </div>
         </div>
@@ -196,7 +196,7 @@ function Node({ pos, icon, label, value, active, color, bg }: any) {
         {icon}
         <div>
           <p className="text-xs font-medium uppercase tracking-wider">{label}</p>
-          <p className="text-lg font-bold tabular-nums">{value.toFixed(2)} kW</p>
+          <p className="text-lg font-bold tabular-nums">{value.toFixed(2)} W</p>
         </div>
       </div>
     </motion.div>

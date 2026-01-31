@@ -31,7 +31,7 @@ export default function PowerDistribution({ solarOutput, batteryOutput, gridOutp
             {item.name}
           </p>
           <p className="text-sm text-gray-300">
-            {item.value.toFixed(2)} kW ({percentage}%)
+            {item.value.toFixed(2)} W ({percentage}%)
           </p>
         </div>
       )
@@ -110,7 +110,7 @@ export default function PowerDistribution({ solarOutput, batteryOutput, gridOutp
                     <span className="text-gray-300">{item.name}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-gray-400">{item.value.toFixed(2)} kW</span>
+                    <span className="text-gray-400">{item.value.toFixed(2)} W</span>
                     <span className="text-gray-500 w-12 text-right">{percentage}%</span>
                   </div>
                 </div>
@@ -122,7 +122,7 @@ export default function PowerDistribution({ solarOutput, batteryOutput, gridOutp
           <div className="mt-4 pt-4 border-t border-gray-700/50">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-400">Total Output</span>
-              <span className="text-lg font-bold text-white">{total.toFixed(2)} kW</span>
+              <span className="text-lg font-bold text-white">{total.toFixed(2)} W</span>
             </div>
           </div>
         </>

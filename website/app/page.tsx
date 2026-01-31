@@ -398,7 +398,7 @@ export default function Home() {
                   <Database className="w-3 h-3" /><span className="text-xs font-medium">{isConnected ? 'Connected' : 'Offline'}</span>
                 </div>
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 rounded-full border border-gray-700">
-                  <Activity className="w-4 h-4 text-blue-400" /><span className="text-xs text-gray-300">{powerConsumption.toFixed(2)} kW</span>
+                  <Activity className="w-4 h-4 text-blue-400" /><span className="text-xs text-gray-300">{powerConsumption.toFixed(2)} W</span>
                 </div>
                 <button onClick={fetchAIDecision} disabled={isAiThinking} className="p-2 rounded-lg bg-gray-800 border border-gray-700 hover:bg-gray-700 disabled:opacity-50">
                   <RefreshCw className={`w-4 h-4 text-gray-400 ${isAiThinking ? 'animate-spin' : ''}`} />
@@ -432,9 +432,9 @@ export default function Home() {
                       </div>
                     </div>
                     <div className="flex gap-8">
-                      <div className="text-center"><p className="text-2xl font-bold text-green-400">{solarPowerKW.toFixed(2)} kW</p><p className="text-xs text-gray-400">Solar (V×I)</p></div>
+                      <div className="text-center"><p className="text-2xl font-bold text-green-400">{solarPowerKW.toFixed(2)} W</p><p className="text-xs text-gray-400">Solar (V×I)</p></div>
                       <div className="text-center"><p className="text-2xl font-bold text-yellow-400">{batteryPercentage.toFixed(0)}%</p><p className="text-xs text-gray-400">Battery</p></div>
-                      <div className="text-center"><p className={`text-2xl font-bold ${isCurrentlyPeakHour ? 'text-red-400' : 'text-blue-400'}`}>{powerConsumption.toFixed(2)} kW</p><p className="text-xs text-gray-400">{isCurrentlyPeakHour ? 'Peak' : 'Normal'}</p></div>
+                      <div className="text-center"><p className={`text-2xl font-bold ${isCurrentlyPeakHour ? 'text-red-400' : 'text-blue-400'}`}>{powerConsumption.toFixed(2)} W</p><p className="text-xs text-gray-400">{isCurrentlyPeakHour ? 'Peak' : 'Normal'}</p></div>
                     </div>
                   </div>
                 </div>
@@ -511,9 +511,9 @@ export default function Home() {
                     { label: 'Temperature', value: `${sensorData.temperature.toFixed(1)}°C`, color: 'text-red-400' },
                     { label: 'Humidity', value: `${sensorData.humidity.toFixed(0)}%`, color: 'text-blue-400' },
                     { label: 'LDR', value: sensorData.light.toFixed(0), color: 'text-yellow-400' },
-                    { label: 'Current', value: `${sensorData.current.toFixed(2)}A`, color: 'text-green-400' },
+                    { label: 'Current', value: `${sensorData.current.toFixed(2)}mA`, color: 'text-green-400' },
                     { label: 'Voltage', value: `${sensorData.voltage.toFixed(0)}V`, color: 'text-purple-400' },
-                    { label: 'Solar Power', value: `${solarPowerKW.toFixed(3)}kW`, color: 'text-green-500', highlight: true },
+                    { label: 'Solar Power', value: `${solarPowerKW.toFixed(3)}W`, color: 'text-green-500', highlight: true },
                   ].map((s, i) => (
                     <div key={i} className={`rounded-lg p-4 border ${s.highlight ? 'bg-green-500/10 border-green-500/30' : 'bg-gray-800/50 border-gray-700/50'}`}><p className="text-xs text-gray-400 mb-1">{s.label}</p><p className={`text-2xl font-bold ${s.color}`}>{s.value}</p></div>
                   ))}
@@ -529,7 +529,7 @@ export default function Home() {
                     <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2"><Brain className="w-4 h-4 text-purple-400" />AI Source Allocation</h4>
                     <div className="space-y-2">
                       {[{ source: 'solar', power: energyOutputs.solar }, { source: 'battery', power: energyOutputs.battery }, { source: 'grid', power: energyOutputs.grid }].filter(s => s.power > 0).map((item, i) => (
-                        <div key={i} className="flex items-center justify-between"><div className="flex items-center gap-2">{getSourceIcon(item.source)}<span className={`capitalize ${getSourceColor(item.source)}`}>{item.source}</span></div><span className="text-white font-medium">{item.power.toFixed(3)} kW</span></div>
+                        <div key={i} className="flex items-center justify-between"><div className="flex items-center gap-2">{getSourceIcon(item.source)}<span className={`capitalize ${getSourceColor(item.source)}`}>{item.source}</span></div><span className="text-white font-medium">{item.power.toFixed(3)} W</span></div>
                       ))}
                     </div>
                   </div>
